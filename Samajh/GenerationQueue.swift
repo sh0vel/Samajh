@@ -1,0 +1,84 @@
+import SwiftUI
+
+@MainActor
+final class GenerationQueue: ObservableObject {
+
+    struct PendingJob: Identifiable, Codable {
+        let id: String      // jobId
+        let title: String
+    }
+
+    @Published var pendingJobs: [PendingJob] = []
+    @Published var errorMessage: String?
+
+    var isGenerating: Bool { !pendingJobs.isEmpty }
+
+    private static let storageKey = "pendingGenerationJobs"
+
+    init() {
+        if let data = UserDefaults.standard.data(forKey: Self.storageKey),
+           let saved = try? JSONDecoder().decode([PendingJob].self, from: data) {
+            pendingJobs = saved
+            for job in saved {
+                Task { await poll(jobId: job.id, title: job.title, onComplete: { _ in }) }
+            }
+        }
+    }
+
+    func start(
+        rawLyrics: String,
+        titleHint: String,
+        artistHint: String,
+        onComplete: @escaping (String) -> Void
+    ) {
+        errorMessage = nil
+        Task {
+            do {
+                let queued = try await APIClient.shared.jsonifyLyrics(
+                    rawLyrics: rawLyrics,
+                    titleHint: titleHint.isEmpty ? nil : titleHint,
+                    artistHint: artistHint.isEmpty ? nil : artistHint
+                )
+                let job = PendingJob(id: queued.jobId, title: titleHint)
+                pendingJobs.append(job)
+                persist()
+                await poll(jobId: queued.jobId, title: titleHint, onComplete: onComplete)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func poll(jobId: String, title: String, onComplete: @escaping (String) -> Void) async {
+        defer {
+            pendingJobs.removeAll { $0.id == jobId }
+            persist()
+        }
+
+        while true {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if Task.isCancelled { return }
+
+            do {
+                let status = try await APIClient.shared.getJobStatus(jobId: jobId)
+                switch status.status {
+                case "done":
+                    if let songId = status.songId { onComplete(songId) }
+                    return
+                case "error":
+                    errorMessage = status.errorMessage ?? "\(title): generation failed"
+                    return
+                default:
+                    break
+                }
+            } catch {
+                // Network hiccup — keep polling.
+            }
+        }
+    }
+
+    private func persist() {
+        let data = try? JSONEncoder().encode(pendingJobs)
+        UserDefaults.standard.set(data, forKey: Self.storageKey)
+    }
+}

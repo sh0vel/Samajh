@@ -16,17 +16,41 @@ final class LyricsViewModel: ObservableObject {
             self.error = error.localizedDescription
         }
     }
+
+    func updateLine(songId: String, lineId: String, fields: LineUpdateRequest) async throws {
+        try await APIClient.shared.updateLine(songId: songId, lineId: lineId, fields: fields)
+        lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
+    }
+
+    func retranslateLine(songId: String, lineId: String, feedback: String?) async throws {
+        _ = try await APIClient.shared.retranslateLine(songId: songId, lineId: lineId, feedback: feedback)
+        lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
+    }
+
+    func retranslateSong(songId: String, feedback: String?) async throws -> String {
+        let response = try await APIClient.shared.retranslateSong(songId: songId, feedback: feedback)
+        return response.songId
+    }
+
+    func deleteSong(songId: String) async throws {
+        try await APIClient.shared.deleteSong(songId: songId)
+    }
 }
 
 struct LyricsView: View {
     let songId: String
     @StateObject private var vm = LyricsViewModel()
 
-    @State private var showHindi = false
-    @State private var showWordByWord = false
-    @State private var showDirect = false
-    @State private var showNatural = false
+    @AppStorage("showHindi") private var showHindi = false
+    @AppStorage("showWordByWord") private var showWordByWord = false
+    @AppStorage("showDirect") private var showDirect = false
+    @AppStorage("showNatural") private var showNatural = true
     @State private var activeTokenItem: ActiveTokenItem?
+    @State private var editingLine: LyricLineModel?
+    @State private var showSongRetranslate = false
+    @State private var showDeleteConfirm = false
+    @State private var showFlashcards = false
+    @Environment(\.dismiss) private var dismiss
 
     private struct ActiveTokenItem: Identifiable {
         let id = "active"
@@ -58,6 +82,35 @@ struct LyricsView: View {
         }
         .navigationTitle(vm.lesson?.title ?? "")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {
+                    Button("Study Flashcards") { showFlashcards = true }
+                        .disabled(vm.lesson == nil)
+                    Button("Retranslate Song…") { showSongRetranslate = true }
+                    Divider()
+                    Button("Delete Song", role: .destructive) { showDeleteConfirm = true }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+            }
+        }
+        .navigationDestination(isPresented: $showFlashcards) {
+            if let lesson = vm.lesson {
+                FlashcardView(lesson: lesson)
+            }
+        }
+        .alert("Delete this song?", isPresented: $showDeleteConfirm) {
+            Button("Delete", role: .destructive) {
+                Task {
+                    try? await vm.deleteSong(songId: songId)
+                    dismiss()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This cannot be undone.")
+        }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 8) {
                 ToggleChip(label: "हिंदी", isOn: $showHindi)
@@ -78,6 +131,12 @@ struct LyricsView: View {
                 .presentationDetents([.fraction(0.25), .medium])
                 .presentationDragIndicator(.visible)
                 .presentationBackgroundInteraction(.enabled)
+        }
+        .sheet(item: $editingLine) { line in
+            LineEditSheet(songId: songId, line: line, vm: vm)
+        }
+        .sheet(isPresented: $showSongRetranslate) {
+            SongRetranslateSheet(songId: songId, vm: vm)
         }
     }
 
@@ -113,6 +172,9 @@ struct LyricsView: View {
                                 showNatural: showNatural,
                                 onTokenTap: { token in
                                     activeTokenItem = ActiveTokenItem(token: token)
+                                },
+                                onLongPress: {
+                                    editingLine = line
                                 }
                             )
                         }
@@ -122,6 +184,10 @@ struct LyricsView: View {
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                activeTokenItem = nil
+            }
         }
     }
 }
@@ -157,60 +223,103 @@ private struct LyricLineRow: View {
     let showDirect: Bool
     let showNatural: Bool
     let onTokenTap: (LyricToken) -> Void
+    let onLongPress: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            if showHindi {
-                Text(line.text.target)
-                    .font(.title3)
-                    .foregroundStyle(.primary)
-            }
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                if showHindi {
+                    Text(line.text.target)
+                        .font(.title3)
+                        .foregroundStyle(.primary)
+                }
 
-            romanLine
+                romanLine
 
-            if showWordByWord, let s = line.text.wordByWord, !s.isEmpty {
-                Text(s)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+                if showWordByWord, let s = line.text.wordByWord, !s.isEmpty {
+                    Text(s)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                if showDirect, let s = line.text.direct, !s.isEmpty {
+                    Text(s)
+                        .font(.callout.italic())
+                        .foregroundStyle(.secondary)
+                }
+                if showNatural, let s = line.text.natural, !s.isEmpty {
+                    Text(s)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
             }
-            if showDirect, let s = line.text.direct, !s.isEmpty {
-                Text(s)
-                    .font(.callout.italic())
-                    .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+            .onLongPressGesture { onLongPress() }
+
+            Button {
+                TTSPlayer.shared.speak(line.text.target)
+            } label: {
+                Image(systemName: "speaker.wave.2")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .padding(8)
+                    .contentShape(Rectangle())
             }
-            if showNatural, let s = line.text.natural, !s.isEmpty {
-                Text(s)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
+            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var romanLine: some View {
-        let words = line.text.roman.split(separator: " ", omittingEmptySubsequences: false).map(String.init)
-        let tokens = line.tokens ?? []
+        let pairs = Self.alignWordsToTokens(
+            roman: line.text.roman,
+            tokens: line.tokens ?? []
+        )
         return WrapHStack(spacing: 4, lineSpacing: 4) {
-            ForEach(Array(words.enumerated()), id: \.offset) { idx, word in
-                if word.isEmpty {
-                    EmptyView()
-                } else if idx < tokens.count {
-                    let token = tokens[idx]
+            ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
+                if let token = pair.token {
                     Button {
                         onTokenTap(token)
                     } label: {
-                        Text(word)
-                            .font(.body)
+                        Text(pair.word)
+                            .font(.body.weight(.semibold))
                             .foregroundStyle(Color.accentColor)
-                            .underline(true, pattern: .dot)
                     }
                     .buttonStyle(.plain)
                 } else {
-                    Text(word)
+                    Text(pair.word)
                         .font(.body)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
         }
+    }
+
+    private static func alignWordsToTokens(
+        roman: String,
+        tokens: [LyricToken]
+    ) -> [(word: String, token: LyricToken?)] {
+        let words = roman.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+        var result: [(word: String, token: LyricToken?)] = []
+        var tokenIdx = 0
+
+        func normalize(_ s: String) -> String {
+            s.lowercased().filter { $0.isLetter || $0.isNumber }
+        }
+
+        for word in words {
+            let normWord = normalize(word)
+            if normWord.isEmpty {
+                // pure punctuation — render as-is, no token
+                result.append((word, nil))
+            } else if tokenIdx < tokens.count && normalize(tokens[tokenIdx].roman) == normWord {
+                result.append((word, tokens[tokenIdx]))
+                tokenIdx += 1
+            } else {
+                // word present in roman but no matching token (mismatch) — still render
+                result.append((word, nil))
+            }
+        }
+        return result
     }
 }
 
@@ -225,6 +334,15 @@ private struct TokenSheet: View {
                 Text(token.roman)
                     .font(.title3)
                     .foregroundStyle(.secondary)
+                Spacer()
+                Button {
+                    TTSPlayer.shared.speak(token.surface)
+                } label: {
+                    Image(systemName: "speaker.wave.2")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
             }
             Text(token.gloss)
                 .font(.body)
@@ -292,6 +410,197 @@ private struct _FlowLayout: Layout {
             subview.place(at: CGPoint(x: x, y: y), proposal: .unspecified)
             x += size.width + spacing
             lineHeight = max(lineHeight, size.height)
+        }
+    }
+}
+
+// MARK: - Line Edit Sheet
+
+private struct LineEditSheet: View {
+    let songId: String
+    let line: LyricLineModel
+    @ObservedObject var vm: LyricsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var roman: String
+    @State private var wordByWord: String
+    @State private var direct: String
+    @State private var natural: String
+    @State private var feedback: String = ""
+    @State private var isBusy = false
+    @State private var errorMsg: String?
+    @State private var mode: Mode = .manual
+
+    enum Mode { case manual, retranslate }
+
+    init(songId: String, line: LyricLineModel, vm: LyricsViewModel) {
+        self.songId = songId
+        self.line = line
+        self.vm = vm
+        _roman = State(initialValue: line.text.roman)
+        _wordByWord = State(initialValue: line.text.wordByWord ?? "")
+        _direct = State(initialValue: line.text.direct ?? "")
+        _natural = State(initialValue: line.text.natural ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Original") {
+                    Text(line.text.target)
+                        .font(.title3)
+                }
+
+                Picker("Mode", selection: $mode) {
+                    Text("Edit manually").tag(Mode.manual)
+                    Text("Retranslate with AI").tag(Mode.retranslate)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+
+                if mode == .manual {
+                    Section("Roman") {
+                        TextField("Romanization", text: $roman)
+                    }
+                    Section("Word by Word") {
+                        TextField("Word-by-word gloss", text: $wordByWord)
+                    }
+                    Section("Direct") {
+                        TextField("Direct translation", text: $direct, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+                    Section("Natural") {
+                        TextField("Natural translation", text: $natural, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+                } else {
+                    Section("Feedback (optional)") {
+                        TextField("e.g. 'keep it more literal'", text: $feedback, axis: .vertical)
+                            .lineLimit(3...6)
+                    }
+                }
+
+                if let msg = errorMsg {
+                    Section {
+                        Text(msg).foregroundStyle(.red).font(.callout)
+                    }
+                }
+            }
+            .navigationTitle("Edit Line")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isBusy {
+                        ProgressView()
+                    } else {
+                        Button(mode == .manual ? "Save" : "Retranslate") {
+                            Task { await save() }
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func save() async {
+        isBusy = true
+        errorMsg = nil
+        defer { isBusy = false }
+        do {
+            if mode == .manual {
+                let fields = LineUpdateRequest(
+                    roman: roman.isEmpty ? nil : roman,
+                    wordByWord: wordByWord.isEmpty ? nil : wordByWord,
+                    direct: direct.isEmpty ? nil : direct,
+                    natural: natural.isEmpty ? nil : natural
+                )
+                try await vm.updateLine(songId: songId, lineId: line.lineId, fields: fields)
+            } else {
+                try await vm.retranslateLine(songId: songId, lineId: line.lineId, feedback: feedback.isEmpty ? nil : feedback)
+            }
+            dismiss()
+        } catch {
+            errorMsg = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Song Retranslate Sheet
+
+private struct SongRetranslateSheet: View {
+    let songId: String
+    @ObservedObject var vm: LyricsViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var feedback: String = ""
+    @State private var isBusy = false
+    @State private var errorMsg: String?
+    @State private var newSongId: String?
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("This will re-run the AI translation on the whole song and save the result as a new version.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                Section("Feedback (optional)") {
+                    TextField("e.g. 'this is Urdu, not Hindi'", text: $feedback, axis: .vertical)
+                        .lineLimit(3...8)
+                }
+                if let msg = errorMsg {
+                    Section {
+                        Text(msg).foregroundStyle(.red).font(.callout)
+                    }
+                }
+                if let newId = newSongId {
+                    Section {
+                        Text("Saved as: \(newId)")
+                            .font(.callout)
+                            .foregroundStyle(.green)
+                    }
+                }
+            }
+            .navigationTitle("Retranslate Song")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if isBusy {
+                        ProgressView()
+                    } else {
+                        Button("Retranslate") {
+                            Task { await retranslate() }
+                        }
+                        .fontWeight(.semibold)
+                        .disabled(newSongId != nil)
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private func retranslate() async {
+        isBusy = true
+        errorMsg = nil
+        defer { isBusy = false }
+        do {
+            let id = try await vm.retranslateSong(songId: songId, feedback: feedback.isEmpty ? nil : feedback)
+            newSongId = id
+        } catch {
+            errorMsg = error.localizedDescription
         }
     }
 }

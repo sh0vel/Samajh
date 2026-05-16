@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct SamajhApp: App {
     @State private var path = NavigationPath()
+    @StateObject private var generationQueue = GenerationQueue()
 
     var body: some Scene {
         WindowGroup {
@@ -12,6 +13,7 @@ struct SamajhApp: App {
                         LyricsView(songId: songId)
                     }
             }
+            .environmentObject(generationQueue)
         }
     }
 }

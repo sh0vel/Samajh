@@ -15,19 +15,18 @@ struct AddLyricsView: View {
     @State private var didSearch = false
     @State private var selectedCandidateId: String?
 
-    @State private var isGenerating = false
+    @EnvironmentObject private var queue: GenerationQueue
     @State private var generateError: String?
 
     private let maxChars = 30_000
 
     private var canSearch: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSearching && !isGenerating
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSearching
     }
 
     private var canGenerate: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !rawLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !isGenerating
             && !isSearching
     }
 
@@ -37,10 +36,10 @@ struct AddLyricsView: View {
                 Section {
                     TextField("Title", text: $title)
                         .textInputAutocapitalization(.words)
-                        .disabled(isGenerating || isSearching)
+                        .disabled(isSearching)
                     TextField("Artist (optional)", text: $artist)
                         .textInputAutocapitalization(.words)
-                        .disabled(isGenerating || isSearching)
+                        .disabled(isSearching)
                 } header: {
                     Text("Song")
                 } footer: {
@@ -96,7 +95,6 @@ struct AddLyricsView: View {
                     TextEditor(text: $rawLyrics)
                         .frame(height: 260)
                         .font(.body)
-                        .disabled(isGenerating)
                     HStack {
                         Spacer()
                         Text("\(rawLyrics.count) / \(maxChars)")
@@ -106,7 +104,7 @@ struct AddLyricsView: View {
                 } header: {
                     Text("Hindi Lyrics")
                 } footer: {
-                    Text("Tap a candidate above or paste raw Devanagari. Generation takes 15–30 seconds.")
+                    Text("Tap a candidate above or paste raw Devanagari.")
                 }
 
                 if let generateError {
@@ -122,20 +120,14 @@ struct AddLyricsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Cancel") { dismiss() }
-                        .disabled(isGenerating)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    if isGenerating {
-                        ProgressView()
-                    } else {
-                        Button("Generate") {
-                            Task { await submit() }
-                        }
-                        .disabled(!canGenerate)
+                    Button("Generate") {
+                        Task { await submit() }
                     }
+                    .disabled(!canGenerate)
                 }
             }
-            .interactiveDismissDisabled(isGenerating)
         }
     }
 
@@ -167,6 +159,7 @@ struct AddLyricsView: View {
     private func submit() async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedLyrics = rawLyrics.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedArtist = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else {
             generateError = "Title is required"
             return
@@ -175,20 +168,13 @@ struct AddLyricsView: View {
             generateError = "Please enter lyrics or pick a candidate"
             return
         }
-        isGenerating = true
-        generateError = nil
-        do {
-            let resp = try await APIClient.shared.jsonifyLyrics(
-                rawLyrics: trimmedLyrics,
-                titleHint: trimmedTitle,
-                artistHint: artist.trimmingCharacters(in: .whitespacesAndNewlines)
-            )
-            isGenerating = false
-            onSuccess(resp.songId)
-        } catch {
-            isGenerating = false
-            generateError = error.localizedDescription
-        }
+        dismiss()
+        queue.start(
+            rawLyrics: trimmedLyrics,
+            titleHint: trimmedTitle,
+            artistHint: trimmedArtist,
+            onComplete: onSuccess
+        )
     }
 }
 

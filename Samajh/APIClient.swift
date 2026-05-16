@@ -30,6 +30,8 @@ actor APIClient {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = Double.greatestFiniteMagnitude
         config.timeoutIntervalForResource = Double.greatestFiniteMagnitude
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        config.urlCache = nil
         self.session = URLSession(configuration: config)
         self.decoder = JSONDecoder()
         self.encoder = JSONEncoder()
@@ -60,7 +62,7 @@ actor APIClient {
         return response.candidates
     }
 
-    func jsonifyLyrics(rawLyrics: String, titleHint: String?, artistHint: String?) async throws -> JsonifyResponse {
+    func jsonifyLyrics(rawLyrics: String, titleHint: String?, artistHint: String?) async throws -> JsonifyQueuedResponse {
         let url = baseURL.appendingPathComponent("/api/jsonify")
         let payload = JsonifyRequest(
             rawLyrics: rawLyrics,
@@ -68,6 +70,33 @@ actor APIClient {
             artistHint: artistHint?.isEmpty == true ? nil : artistHint
         )
         return try await request(url: url, method: "POST", body: payload)
+    }
+
+    func getJobStatus(jobId: String) async throws -> JobStatusResponse {
+        let url = baseURL.appendingPathComponent("/api/jobs/\(jobId)")
+        return try await request(url: url, method: "GET", body: Optional<String>.none)
+    }
+
+    func updateLine(songId: String, lineId: String, fields: LineUpdateRequest) async throws {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)")
+        let _: EmptyResponse = try await request(url: url, method: "PATCH", body: fields)
+    }
+
+    func retranslateLine(songId: String, lineId: String, feedback: String?) async throws -> LineTranslationResult {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)/retranslate")
+        let payload = FeedbackRequest(feedback: feedback)
+        return try await request(url: url, method: "POST", body: payload)
+    }
+
+    func retranslateSong(songId: String, feedback: String?) async throws -> JsonifyResponse {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/retranslate")
+        let payload = FeedbackRequest(feedback: feedback)
+        return try await request(url: url, method: "POST", body: payload)
+    }
+
+    func deleteSong(songId: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)")
+        let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
     }
 
     private func request<Body: Encodable, T: Decodable>(url: URL, method: String, body: Body?) async throws -> T {

@@ -18,16 +18,34 @@ final class SongListViewModel: ObservableObject {
     }
 }
 
+private let generationPhrases = [
+    "Breaking it down…",
+    "Finding the words…",
+    "Learning the song…",
+    "Building your lesson…",
+    "Almost ready…",
+]
+
 struct SongListView: View {
     @Binding var path: NavigationPath
     @StateObject private var vm = SongListViewModel()
+    @EnvironmentObject private var queue: GenerationQueue
     @State private var showingAdd = false
+    @State private var phraseIndex = 0
+    @State private var flashedSongId: String?
+    @State private var flashOpacity: Double = 0
 
     var body: some View {
         Group {
             if vm.isLoading && vm.songs.isEmpty {
-                ProgressView("Loading songs…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 16) {
+                    Text("समझ")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundStyle(.accent)
+                    ProgressView()
+                        .tint(.accent)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = vm.error, vm.songs.isEmpty {
                 VStack(spacing: 12) {
                     Text("Couldn't load songs")
@@ -43,34 +61,66 @@ struct SongListView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if vm.songs.isEmpty {
-                VStack(spacing: 8) {
-                    Text("No songs yet")
-                        .font(.headline)
-                    Text("Tap + to add your first lesson")
+            } else if vm.songs.isEmpty && !queue.isGenerating {
+                VStack(spacing: 16) {
+                    Text("समझ")
+                        .font(.system(size: 48, weight: .bold))
+                        .foregroundStyle(.accent)
+                    Text("Every song holds a lesson.")
+                        .font(.title3.weight(.medium))
+                    Text("Tap + to add your first song.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
+                .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(vm.songs) { song in
-                    NavigationLink(value: song.songId) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(song.title)
-                                .font(.headline)
-                            HStack {
-                                if let artist = song.artist, !artist.isEmpty {
-                                    Text(artist)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(DateFormatting.relative(from: song.updatedAt))
+                List {
+                    ForEach(queue.pendingJobs) { job in
+                        HStack(spacing: 12) {
+                            ProgressView()
+                                .tint(Color.accentColor)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(job.title)
+                                    .font(.headline)
+                                    .foregroundStyle(Color.accentColor)
+                                Text(generationPhrases[phraseIndex])
                                     .font(.caption)
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(Color.accentColor.opacity(0.7))
+                                    .contentTransition(.opacity)
+                                    .animation(.easeInOut(duration: 0.5), value: phraseIndex)
                             }
                         }
                         .padding(.vertical, 4)
+                    }
+                    if let err = queue.errorMessage {
+                        Text("Generation failed: \(err)")
+                            .font(.callout)
+                            .foregroundStyle(.red)
+                    }
+                    ForEach(vm.songs) { song in
+                        NavigationLink(value: song.songId) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(song.title)
+                                    .font(.headline)
+                                HStack {
+                                    if let artist = song.artist, !artist.isEmpty {
+                                        Text(artist)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Text(DateFormatting.relative(from: song.updatedAt))
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        .listRowBackground(
+                            Color.accentColor
+                                .opacity(song.songId == flashedSongId ? flashOpacity * 0.18 : 0)
+                        )
                     }
                 }
                 .refreshable {
@@ -90,18 +140,43 @@ struct SongListView: View {
             }
         }
         .sheet(isPresented: $showingAdd) {
-            AddLyricsView { newSongId in
-                showingAdd = false
-                Task {
-                    await vm.load()
-                    path.append(newSongId)
-                }
+            AddLyricsView { _ in
+                Task { await vm.load() }
             }
         }
         .task {
-            if vm.songs.isEmpty {
-                await vm.load()
+            await vm.load()
+        }
+        // Rotate status phrases while any job is in progress
+        .task(id: queue.pendingJobs.isEmpty) {
+            guard !queue.pendingJobs.isEmpty else { return }
+            phraseIndex = 0
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_500_000_000)
+                guard !Task.isCancelled else { return }
+                phraseIndex = (phraseIndex + 1) % generationPhrases.count
             }
         }
+        // Reload + flash the new row when generation finishes
+        .onChange(of: queue.isGenerating) { _, nowGenerating in
+            if !nowGenerating {
+                let previousIds = Set(vm.songs.map { $0.songId })
+                Task {
+                    await vm.load()
+                    if let newSong = vm.songs.first(where: { !previousIds.contains($0.songId) }) {
+                        await flashRow(for: newSong.songId)
+                    }
+                }
+            }
+        }
+    }
+
+    private func flashRow(for songId: String) async {
+        flashedSongId = songId
+        withAnimation(.easeIn(duration: 0.25)) { flashOpacity = 1 }
+        try? await Task.sleep(nanoseconds: 1_300_000_000)
+        withAnimation(.easeOut(duration: 1.1)) { flashOpacity = 0 }
+        try? await Task.sleep(nanoseconds: 1_200_000_000)
+        flashedSongId = nil
     }
 }

@@ -64,8 +64,19 @@ struct JsonifyRequest: Codable {
     let artistHint: String?
 }
 
+struct JsonifyQueuedResponse: Codable {
+    let jobId: String
+}
+
 struct JsonifyResponse: Codable {
     let songId: String
+}
+
+struct JobStatusResponse: Codable {
+    let jobId: String
+    let status: String
+    let songId: String?
+    let errorMessage: String?
 }
 
 struct LookupRequest: Codable {
@@ -93,4 +104,27 @@ struct APIErrorPayload: Codable {
         let message: String?
     }
     let error: Inner?
+}
+
+struct LineUpdateRequest: Codable {
+    var roman: String?
+    var wordByWord: String?
+    var direct: String?
+    var natural: String?
+}
+
+struct FeedbackRequest: Codable {
+    let feedback: String?
+}
+
+struct LineTranslationResult: Codable {
+    let roman: String
+    let wordByWord: String
+    let direct: String
+    let natural: String
+    let tokens: [LyricToken]
+}
+
+struct EmptyResponse: Codable {
+    let ok: Bool?
 }
