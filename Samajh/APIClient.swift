@@ -77,6 +77,16 @@ actor APIClient {
         return try await request(url: url, method: "GET", body: Optional<String>.none)
     }
 
+    func insertInstrumental(songId: String, beforeLineId: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(beforeLineId)/instrumental")
+        let _: EmptyResponse = try await request(url: url, method: "POST", body: Optional<String>.none)
+    }
+
+    func deleteLine(songId: String, lineId: String) async throws {
+        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)")
+        let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
+    }
+
     func updateLine(songId: String, lineId: String, fields: LineUpdateRequest) async throws {
         let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)")
         let _: EmptyResponse = try await request(url: url, method: "PATCH", body: fields)

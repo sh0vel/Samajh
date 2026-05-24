@@ -5,9 +5,9 @@ struct AddLyricsView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    @State private var title = ""
-    @State private var artist = ""
-    @State private var rawLyrics = ""
+    @SceneStorage("addLyrics.title") private var title = ""
+    @SceneStorage("addLyrics.artist") private var artist = ""
+    @SceneStorage("addLyrics.rawLyrics") private var rawLyrics = ""
 
     @State private var isSearching = false
     @State private var searchError: String?
@@ -119,7 +119,7 @@ struct AddLyricsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { clearAndDismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Generate") {
@@ -129,6 +129,13 @@ struct AddLyricsView: View {
                 }
             }
         }
+    }
+
+    private func clearAndDismiss() {
+        title = ""
+        artist = ""
+        rawLyrics = ""
+        dismiss()
     }
 
     private func search() async {
@@ -168,7 +175,7 @@ struct AddLyricsView: View {
             generateError = "Please enter lyrics or pick a candidate"
             return
         }
-        dismiss()
+        clearAndDismiss()
         queue.start(
             rawLyrics: trimmedLyrics,
             titleHint: trimmedTitle,

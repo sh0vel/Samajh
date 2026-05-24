@@ -32,6 +32,16 @@ final class LyricsViewModel: ObservableObject {
         return response.songId
     }
 
+    func insertInstrumental(songId: String, beforeLineId: String) async throws {
+        try await APIClient.shared.insertInstrumental(songId: songId, beforeLineId: beforeLineId)
+        lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
+    }
+
+    func deleteLine(songId: String, lineId: String) async throws {
+        try await APIClient.shared.deleteLine(songId: songId, lineId: lineId)
+        lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
+    }
+
     func deleteSong(songId: String) async throws {
         try await APIClient.shared.deleteSong(songId: songId)
     }
@@ -41,7 +51,7 @@ struct LyricsView: View {
     let songId: String
     @StateObject private var vm = LyricsViewModel()
 
-    @AppStorage("showHindi") private var showHindi = false
+    @AppStorage("showNative") private var showNative = false
     @AppStorage("showWordByWord") private var showWordByWord = false
     @AppStorage("showDirect") private var showDirect = false
     @AppStorage("showNatural") private var showNatural = true
@@ -51,6 +61,7 @@ struct LyricsView: View {
     @State private var showDeleteConfirm = false
     @State private var showFlashcards = false
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var favorites: FavoritesStore
 
     private struct ActiveTokenItem: Identifiable {
         let id = "active"
@@ -113,7 +124,7 @@ struct LyricsView: View {
         }
         .safeAreaInset(edge: .bottom) {
             HStack(spacing: 8) {
-                ToggleChip(label: "हिंदी", isOn: $showHindi)
+                ToggleChip(label: "Native", isOn: $showNative)
                 ToggleChip(label: "Word", isOn: $showWordByWord)
                 ToggleChip(label: "Direct", isOn: $showDirect)
                 ToggleChip(label: "Natural", isOn: $showNatural)
@@ -123,6 +134,7 @@ struct LyricsView: View {
             .frame(maxWidth: .infinity)
             .background(.bar)
         }
+        .toolbar(.hidden, for: .tabBar)
         .task {
             await vm.load(songId: songId)
         }
@@ -166,15 +178,33 @@ struct LyricsView: View {
                         ForEach(section.lines) { line in
                             LyricLineRow(
                                 line: line,
-                                showHindi: showHindi,
+                                showNative: showNative,
                                 showWordByWord: showWordByWord,
                                 showDirect: showDirect,
                                 showNatural: showNatural,
+                                isFavorite: favorites.isFavorite(lineId: line.lineId),
                                 onTokenTap: { token in
                                     activeTokenItem = ActiveTokenItem(token: token)
                                 },
-                                onLongPress: {
+                                onEdit: {
                                     editingLine = line
+                                },
+                                onInsertInstrumental: {
+                                    Task { try? await vm.insertInstrumental(songId: songId, beforeLineId: line.lineId) }
+                                },
+                                onDeleteInstrumental: {
+                                    Task { try? await vm.deleteLine(songId: songId, lineId: line.lineId) }
+                                },
+                                onToggleFavorite: {
+                                    let fl = FavoriteLine(
+                                        lineId: line.lineId,
+                                        songId: songId,
+                                        songTitle: lesson.title,
+                                        target: line.text.target,
+                                        roman: line.text.roman,
+                                        natural: line.text.natural
+                                    )
+                                    favorites.toggle(line: fl)
                                 }
                             )
                         }
@@ -218,17 +248,60 @@ private struct ToggleChip: View {
 
 private struct LyricLineRow: View {
     let line: LyricLineModel
-    let showHindi: Bool
+    let showNative: Bool
     let showWordByWord: Bool
     let showDirect: Bool
     let showNatural: Bool
+    let isFavorite: Bool
     let onTokenTap: (LyricToken) -> Void
-    let onLongPress: () -> Void
+    let onEdit: () -> Void
+    let onInsertInstrumental: () -> Void
+    let onDeleteInstrumental: () -> Void
+    let onToggleFavorite: () -> Void
 
     var body: some View {
+        if line.isInstrumental == true {
+            instrumentalRow
+        } else {
+            lyricRow
+                .contextMenu {
+                    Button { onToggleFavorite() } label: {
+                        Label(
+                            isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                            systemImage: isFavorite ? "heart.slash" : "heart"
+                        )
+                    }
+                    Divider()
+                    Button { onEdit() } label: {
+                        Label("Edit Translation", systemImage: "pencil")
+                    }
+                    Button { onInsertInstrumental() } label: {
+                        Label("Add Instrumental Before", systemImage: "music.note")
+                    }
+                }
+        }
+    }
+
+    private var instrumentalRow: some View {
+        Text("♩  ♪  ♫  ♬  ♩  ♪  ♫  ♬")
+            .font(.body)
+            .foregroundStyle(Color.accentColor.opacity(0.5))
+            .frame(maxWidth: .infinity)
+            .multilineTextAlignment(.center)
+            .padding(.vertical, 6)
+            .contextMenu {
+                Button(role: .destructive) {
+                    onDeleteInstrumental()
+                } label: {
+                    Label("Remove Instrumental", systemImage: "trash")
+                }
+            }
+    }
+
+    private var lyricRow: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
-                if showHindi {
+                if showNative {
                     Text(line.text.target)
                         .font(.title3)
                         .foregroundStyle(.primary)
@@ -254,7 +327,6 @@ private struct LyricLineRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
-            .onLongPressGesture { onLongPress() }
 
             Button {
                 TTSPlayer.shared.speak(line.text.target)

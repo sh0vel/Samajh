@@ -14,24 +14,35 @@ enum FlashCard: Identifiable {
     }
 }
 
-private func buildDeck(from lesson: LyricLesson) -> [FlashCard] {
+enum DeckMode: String, CaseIterable {
+    case words = "Words"
+    case lines = "Lines"
+    case both  = "Both"
+}
+
+private func buildDeck(from lesson: LyricLesson, mode: DeckMode) -> [FlashCard] {
     var seenSurfaces = Set<String>()
-    var seenLines = Set<String>()
-    var cards: [FlashCard] = []
+    var seenLines    = Set<String>()
+    var wordCards:   [FlashCard] = []
+    var lineCards:   [FlashCard] = []
 
     for section in lesson.sections {
-        for line in section.lines {
-            if seenLines.insert(line.text.target).inserted {
-                cards.append(.line(line))
+        for line in section.lines where line.isInstrumental != true {
+            if mode != .words, seenLines.insert(line.text.target).inserted {
+                lineCards.append(.line(line))
             }
-            for token in line.tokens ?? [] {
-                if seenSurfaces.insert(token.surface).inserted {
-                    cards.append(.word(token))
+            if mode != .lines {
+                for token in line.tokens ?? [] {
+                    if seenSurfaces.insert(token.surface).inserted {
+                        wordCards.append(.word(token))
+                    }
                 }
             }
         }
     }
-    return cards.shuffled()
+
+    // Words first, then lines — within each group, shuffled
+    return wordCards.shuffled() + lineCards.shuffled()
 }
 
 // MARK: - Main view
@@ -41,6 +52,7 @@ struct FlashcardView: View {
 
     @State private var cards: [FlashCard] = []
     @State private var index = 0
+    @State private var deckMode: DeckMode = .both
     @State private var lineMode: LineMode = .natural
 
     enum LineMode: String, CaseIterable {
@@ -55,7 +67,16 @@ struct FlashcardView: View {
                 progressBar
                     .padding(.horizontal, 20)
                     .padding(.top, 12)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 4)
+
+                Picker("Deck", selection: $deckMode) {
+                    ForEach(DeckMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
 
             TabView(selection: $index) {
@@ -75,8 +96,12 @@ struct FlashcardView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             if cards.isEmpty {
-                cards = buildDeck(from: lesson)
+                cards = buildDeck(from: lesson, mode: deckMode)
             }
+        }
+        .onChange(of: deckMode) {
+            cards = buildDeck(from: lesson, mode: deckMode)
+            index = 0
         }
     }
 
@@ -111,7 +136,7 @@ struct FlashcardView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
             Button("Shuffle & Restart") {
-                cards = buildDeck(from: lesson)
+                cards = buildDeck(from: lesson, mode: deckMode)
                 index = 0
                 lineMode = .natural
             }

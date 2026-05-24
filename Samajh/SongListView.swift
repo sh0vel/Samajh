@@ -27,7 +27,6 @@ private let generationPhrases = [
 ]
 
 struct SongListView: View {
-    @Binding var path: NavigationPath
     @StateObject private var vm = SongListViewModel()
     @EnvironmentObject private var queue: GenerationQueue
     @State private var showingAdd = false

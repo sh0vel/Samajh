@@ -37,6 +37,7 @@ struct LyricSection: Codable, Identifiable {
 struct LyricLineModel: Codable, Identifiable {
     let lineId: String
     let order: Int?
+    let isInstrumental: Bool?
     let text: LineText
     let tokens: [LyricToken]?
 
