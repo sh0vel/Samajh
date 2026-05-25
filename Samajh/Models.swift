@@ -4,6 +4,7 @@ struct SongMetadata: Codable, Identifiable, Hashable {
     let songId: String
     let title: String
     let artist: String?
+    let imageUrl: String?
     let createdAt: String?
     let updatedAt: String?
 
@@ -63,6 +64,7 @@ struct JsonifyRequest: Codable {
     let rawLyrics: String
     let titleHint: String?
     let artistHint: String?
+    let imageUrl: String?
 }
 
 struct JsonifyQueuedResponse: Codable {

@@ -22,14 +22,15 @@ final class LyricsViewModel: ObservableObject {
         lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
     }
 
-    func retranslateLine(songId: String, lineId: String, feedback: String?) async throws {
-        _ = try await APIClient.shared.retranslateLine(songId: songId, lineId: lineId, feedback: feedback)
-        lesson = try await APIClient.shared.getSong(songId: songId, includeTokens: true)
-    }
+    @Published var retranslatingLineId: String?
 
-    func retranslateSong(songId: String, feedback: String?) async throws -> String {
-        let response = try await APIClient.shared.retranslateSong(songId: songId, feedback: feedback)
-        return response.songId
+    func beginRetranslateLine(songId: String, lineId: String, feedback: String?) {
+        retranslatingLineId = lineId
+        Task {
+            defer { retranslatingLineId = nil }
+            guard (try? await APIClient.shared.retranslateLine(songId: songId, lineId: lineId, feedback: feedback)) != nil else { return }
+            lesson = try? await APIClient.shared.getSong(songId: songId, includeTokens: true)
+        }
     }
 
     func insertInstrumental(songId: String, beforeLineId: String) async throws {
@@ -49,6 +50,7 @@ final class LyricsViewModel: ObservableObject {
 
 struct LyricsView: View {
     let songId: String
+    var imageUrl: String? = nil
     @StateObject private var vm = LyricsViewModel()
 
     @AppStorage("showNative") private var showNative = false
@@ -62,6 +64,7 @@ struct LyricsView: View {
     @State private var showFlashcards = false
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var favorites: FavoritesStore
+    @EnvironmentObject private var queue: GenerationQueue
 
     private struct ActiveTokenItem: Identifiable {
         let id = "active"
@@ -69,86 +72,86 @@ struct LyricsView: View {
     }
 
     var body: some View {
+        mainContent
+            .navigationTitle(vm.lesson?.title ?? "")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        Button("Study Flashcards") { showFlashcards = true }
+                            .disabled(vm.lesson == nil)
+                        Button("Retranslate Song…") { showSongRetranslate = true }
+                        Divider()
+                        Button("Delete Song", role: .destructive) { showDeleteConfirm = true }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                    }
+                }
+            }
+            .navigationDestination(isPresented: $showFlashcards) {
+                if let lesson = vm.lesson { FlashcardView(lesson: lesson) }
+            }
+            .alert("Delete this song?", isPresented: $showDeleteConfirm) {
+                Button("Delete", role: .destructive) {
+                    Task { try? await vm.deleteSong(songId: songId); dismiss() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This cannot be undone.")
+            }
+            .safeAreaInset(edge: .bottom) {
+                HStack(spacing: 8) {
+                    ToggleChip(label: "Native", isOn: $showNative)
+                    ToggleChip(label: "Word", isOn: $showWordByWord)
+                    ToggleChip(label: "Direct", isOn: $showDirect)
+                    ToggleChip(label: "Natural", isOn: $showNatural)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity)
+                .background(.bar)
+            }
+            .toolbar(.hidden, for: .tabBar)
+            .task { await vm.load(songId: songId) }
+            .sheet(item: $activeTokenItem) { item in
+                TokenSheet(token: item.token)
+                    .presentationDetents([.fraction(0.25), .medium])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackgroundInteraction(.enabled)
+            }
+            .sheet(item: $editingLine) { line in
+                LineEditSheet(
+                    songId: songId, line: line, vm: vm,
+                    onRetranslate: { feedback in
+                        vm.beginRetranslateLine(songId: songId, lineId: line.lineId, feedback: feedback)
+                    }
+                )
+            }
+            .sheet(isPresented: $showSongRetranslate) {
+                SongRetranslateSheet { feedback in
+                    queue.retranslateSong(songId: songId, title: vm.lesson?.title ?? songId, imageUrl: imageUrl, feedback: feedback)
+                    dismiss()
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var mainContent: some View {
         Group {
             if vm.isLoading {
                 ProgressView("Loading…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = vm.error {
                 VStack(spacing: 12) {
-                    Text("Couldn't load song")
-                        .font(.headline)
-                    Text(error)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                    Button("Retry") {
-                        Task { await vm.load(songId: songId) }
-                    }
-                    .buttonStyle(.borderedProminent)
+                    Text("Couldn't load song").font(.headline)
+                    Text(error).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    Button("Retry") { Task { await vm.load(songId: songId) } }
+                        .buttonStyle(.borderedProminent)
                 }
                 .padding()
             } else if let lesson = vm.lesson {
                 content(for: lesson)
             }
-        }
-        .navigationTitle(vm.lesson?.title ?? "")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button("Study Flashcards") { showFlashcards = true }
-                        .disabled(vm.lesson == nil)
-                    Button("Retranslate Song…") { showSongRetranslate = true }
-                    Divider()
-                    Button("Delete Song", role: .destructive) { showDeleteConfirm = true }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-            }
-        }
-        .navigationDestination(isPresented: $showFlashcards) {
-            if let lesson = vm.lesson {
-                FlashcardView(lesson: lesson)
-            }
-        }
-        .alert("Delete this song?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) {
-                Task {
-                    try? await vm.deleteSong(songId: songId)
-                    dismiss()
-                }
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This cannot be undone.")
-        }
-        .safeAreaInset(edge: .bottom) {
-            HStack(spacing: 8) {
-                ToggleChip(label: "Native", isOn: $showNative)
-                ToggleChip(label: "Word", isOn: $showWordByWord)
-                ToggleChip(label: "Direct", isOn: $showDirect)
-                ToggleChip(label: "Natural", isOn: $showNatural)
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
-            .background(.bar)
-        }
-        .toolbar(.hidden, for: .tabBar)
-        .task {
-            await vm.load(songId: songId)
-        }
-        .sheet(item: $activeTokenItem) { item in
-            TokenSheet(token: item.token)
-                .presentationDetents([.fraction(0.25), .medium])
-                .presentationDragIndicator(.visible)
-                .presentationBackgroundInteraction(.enabled)
-        }
-        .sheet(item: $editingLine) { line in
-            LineEditSheet(songId: songId, line: line, vm: vm)
-        }
-        .sheet(isPresented: $showSongRetranslate) {
-            SongRetranslateSheet(songId: songId, vm: vm)
         }
     }
 
@@ -156,13 +159,16 @@ struct LyricsView: View {
     private func content(for lesson: LyricLesson) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(lesson.title)
-                        .font(.title2.bold())
-                    if let artist = lesson.source?.artist, !artist.isEmpty {
-                        Text(artist)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                HStack(alignment: .center, spacing: 12) {
+                    AlbumThumbnail(url: imageUrl, size: 52)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(lesson.title)
+                            .font(.title2.bold())
+                        if let artist = lesson.source?.artist, !artist.isEmpty {
+                            Text(artist)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 .padding(.top, 8)
@@ -183,6 +189,7 @@ struct LyricsView: View {
                                 showDirect: showDirect,
                                 showNatural: showNatural,
                                 isFavorite: favorites.isFavorite(lineId: line.lineId),
+                                isRetranslating: vm.retranslatingLineId == line.lineId,
                                 onTokenTap: { token in
                                     activeTokenItem = ActiveTokenItem(token: token)
                                 },
@@ -192,7 +199,7 @@ struct LyricsView: View {
                                 onInsertInstrumental: {
                                     Task { try? await vm.insertInstrumental(songId: songId, beforeLineId: line.lineId) }
                                 },
-                                onDeleteInstrumental: {
+                                onDeleteLine: {
                                     Task { try? await vm.deleteLine(songId: songId, lineId: line.lineId) }
                                 },
                                 onToggleFavorite: {
@@ -253,15 +260,22 @@ private struct LyricLineRow: View {
     let showDirect: Bool
     let showNatural: Bool
     let isFavorite: Bool
+    let isRetranslating: Bool
     let onTokenTap: (LyricToken) -> Void
     let onEdit: () -> Void
     let onInsertInstrumental: () -> Void
-    let onDeleteInstrumental: () -> Void
+    let onDeleteLine: () -> Void
     let onToggleFavorite: () -> Void
 
     var body: some View {
         if line.isInstrumental == true {
             instrumentalRow
+        } else if isRetranslating {
+            HStack {
+                lyricRow.opacity(0.4)
+                Spacer()
+                ProgressView()
+            }
         } else {
             lyricRow
                 .contextMenu {
@@ -278,6 +292,10 @@ private struct LyricLineRow: View {
                     Button { onInsertInstrumental() } label: {
                         Label("Add Instrumental Before", systemImage: "music.note")
                     }
+                    Divider()
+                    Button(role: .destructive) { onDeleteLine() } label: {
+                        Label("Remove Line", systemImage: "trash")
+                    }
                 }
         }
     }
@@ -291,7 +309,7 @@ private struct LyricLineRow: View {
             .padding(.vertical, 6)
             .contextMenu {
                 Button(role: .destructive) {
-                    onDeleteInstrumental()
+                    onDeleteLine()
                 } label: {
                     Label("Remove Instrumental", systemImage: "trash")
                 }
@@ -492,6 +510,7 @@ private struct LineEditSheet: View {
     let songId: String
     let line: LyricLineModel
     @ObservedObject var vm: LyricsViewModel
+    let onRetranslate: (String?) -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var roman: String
@@ -505,10 +524,11 @@ private struct LineEditSheet: View {
 
     enum Mode { case manual, retranslate }
 
-    init(songId: String, line: LyricLineModel, vm: LyricsViewModel) {
+    init(songId: String, line: LyricLineModel, vm: LyricsViewModel, onRetranslate: @escaping (String?) -> Void) {
         self.songId = songId
         self.line = line
         self.vm = vm
+        self.onRetranslate = onRetranslate
         _roman = State(initialValue: line.text.roman)
         _wordByWord = State(initialValue: line.text.wordByWord ?? "")
         _direct = State(initialValue: line.text.direct ?? "")
@@ -570,7 +590,12 @@ private struct LineEditSheet: View {
                         ProgressView()
                     } else {
                         Button(mode == .manual ? "Save" : "Retranslate") {
-                            Task { await save() }
+                            if mode == .retranslate {
+                                onRetranslate(feedback.isEmpty ? nil : feedback)
+                                dismiss()
+                            } else {
+                                Task { await save() }
+                            }
                         }
                         .fontWeight(.semibold)
                     }
@@ -586,17 +611,13 @@ private struct LineEditSheet: View {
         errorMsg = nil
         defer { isBusy = false }
         do {
-            if mode == .manual {
-                let fields = LineUpdateRequest(
-                    roman: roman.isEmpty ? nil : roman,
-                    wordByWord: wordByWord.isEmpty ? nil : wordByWord,
-                    direct: direct.isEmpty ? nil : direct,
-                    natural: natural.isEmpty ? nil : natural
-                )
-                try await vm.updateLine(songId: songId, lineId: line.lineId, fields: fields)
-            } else {
-                try await vm.retranslateLine(songId: songId, lineId: line.lineId, feedback: feedback.isEmpty ? nil : feedback)
-            }
+            let fields = LineUpdateRequest(
+                roman: roman.isEmpty ? nil : roman,
+                wordByWord: wordByWord.isEmpty ? nil : wordByWord,
+                direct: direct.isEmpty ? nil : direct,
+                natural: natural.isEmpty ? nil : natural
+            )
+            try await vm.updateLine(songId: songId, lineId: line.lineId, fields: fields)
             dismiss()
         } catch {
             errorMsg = error.localizedDescription
@@ -607,38 +628,21 @@ private struct LineEditSheet: View {
 // MARK: - Song Retranslate Sheet
 
 private struct SongRetranslateSheet: View {
-    let songId: String
-    @ObservedObject var vm: LyricsViewModel
+    let onConfirm: (String?) -> Void
     @Environment(\.dismiss) private var dismiss
-
     @State private var feedback: String = ""
-    @State private var isBusy = false
-    @State private var errorMsg: String?
-    @State private var newSongId: String?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("This will re-run the AI translation on the whole song and save the result as a new version.")
+                    Text("Re-runs the AI translation on the whole song and saves it as a new version. Runs in the background.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 Section("Feedback (optional)") {
                     TextField("e.g. 'this is Urdu, not Hindi'", text: $feedback, axis: .vertical)
                         .lineLimit(3...8)
-                }
-                if let msg = errorMsg {
-                    Section {
-                        Text(msg).foregroundStyle(.red).font(.callout)
-                    }
-                }
-                if let newId = newSongId {
-                    Section {
-                        Text("Saved as: \(newId)")
-                            .font(.callout)
-                            .foregroundStyle(.green)
-                    }
                 }
             }
             .navigationTitle("Retranslate Song")
@@ -648,31 +652,15 @@ private struct SongRetranslateSheet: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    if isBusy {
-                        ProgressView()
-                    } else {
-                        Button("Retranslate") {
-                            Task { await retranslate() }
-                        }
-                        .fontWeight(.semibold)
-                        .disabled(newSongId != nil)
+                    Button("Retranslate") {
+                        onConfirm(feedback.isEmpty ? nil : feedback)
+                        dismiss()
                     }
+                    .fontWeight(.semibold)
                 }
             }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-    }
-
-    private func retranslate() async {
-        isBusy = true
-        errorMsg = nil
-        defer { isBusy = false }
-        do {
-            let id = try await vm.retranslateSong(songId: songId, feedback: feedback.isEmpty ? nil : feedback)
-            newSongId = id
-        } catch {
-            errorMsg = error.localizedDescription
-        }
     }
 }

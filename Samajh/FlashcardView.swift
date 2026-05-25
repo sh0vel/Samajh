@@ -214,10 +214,10 @@ private struct CardPage: View {
                 .shadow(color: .black.opacity(0.06), radius: 12, x: 0, y: 4)
         )
         .contentShape(Rectangle())
-        .onTapGesture {
+        .simultaneousGesture(TapGesture().onEnded {
             guard !isRevealed else { return }
             withAnimation(.easeIn(duration: 0.18)) { isRevealed = true }
-        }
+        })
     }
 
     private var cardTypeChip: some View {

@@ -29,7 +29,6 @@ private let generationPhrases = [
 struct SongListView: View {
     @StateObject private var vm = SongListViewModel()
     @EnvironmentObject private var queue: GenerationQueue
-    @State private var showingAdd = false
     @State private var phraseIndex = 0
     @State private var flashedSongId: String?
     @State private var flashOpacity: Double = 0
@@ -67,18 +66,25 @@ struct SongListView: View {
                         .foregroundStyle(.accent)
                     Text("Every song holds a lesson.")
                         .font(.title3.weight(.medium))
-                    Text("Tap + to add your first song.")
+                    Text("Tap Add to start your first lesson.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
+                ScrollViewReader { proxy in
                 List {
                     ForEach(queue.pendingJobs) { job in
                         HStack(spacing: 12) {
-                            ProgressView()
-                                .tint(Color.accentColor)
+                            AlbumThumbnail(url: job.imageUrl, size: 44)
+                                .overlay(alignment: .bottomTrailing) {
+                                    ProgressView()
+                                        .tint(.white)
+                                        .scaleEffect(0.65)
+                                        .padding(3)
+                                        .background(Circle().fill(Color.accentColor))
+                                }
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(job.title)
                                     .font(.headline)
@@ -98,20 +104,23 @@ struct SongListView: View {
                             .foregroundStyle(.red)
                     }
                     ForEach(vm.songs) { song in
-                        NavigationLink(value: song.songId) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(song.title)
-                                    .font(.headline)
-                                HStack {
-                                    if let artist = song.artist, !artist.isEmpty {
-                                        Text(artist)
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
+                        NavigationLink(value: song) {
+                            HStack(spacing: 10) {
+                                AlbumThumbnail(url: song.imageUrl, size: 44)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(song.title)
+                                        .font(.headline)
+                                    HStack {
+                                        if let artist = song.artist, !artist.isEmpty {
+                                            Text(artist)
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Text(DateFormatting.relative(from: song.createdAt))
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
                                     }
-                                    Spacer()
-                                    Text(DateFormatting.relative(from: song.updatedAt))
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
                                 }
                             }
                             .padding(.vertical, 4)
@@ -125,24 +134,15 @@ struct SongListView: View {
                 .refreshable {
                     await vm.load()
                 }
+                .onChange(of: queue.pendingJobs.count) { old, new in
+                    if new > old, let first = queue.pendingJobs.first {
+                        withAnimation { proxy.scrollTo(first.id, anchor: .top) }
+                    }
+                }
+                } // ScrollViewReader
             }
         }
         .navigationTitle("Samajh")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    showingAdd = true
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .accessibilityLabel("Add lyrics")
-            }
-        }
-        .sheet(isPresented: $showingAdd) {
-            AddLyricsView { _ in
-                Task { await vm.load() }
-            }
-        }
         .task {
             await vm.load()
         }

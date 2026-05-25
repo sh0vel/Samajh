@@ -6,6 +6,7 @@ final class GenerationQueue: ObservableObject {
     struct PendingJob: Identifiable, Codable {
         let id: String      // jobId
         let title: String
+        let imageUrl: String?
     }
 
     @Published var pendingJobs: [PendingJob] = []
@@ -20,7 +21,7 @@ final class GenerationQueue: ObservableObject {
            let saved = try? JSONDecoder().decode([PendingJob].self, from: data) {
             pendingJobs = saved
             for job in saved {
-                Task { await poll(jobId: job.id, title: job.title, onComplete: { _ in }) }
+                Task { await poll(jobId: job.id, title: job.title, imageUrl: job.imageUrl, onComplete: { _ in }) }
             }
         }
     }
@@ -29,6 +30,7 @@ final class GenerationQueue: ObservableObject {
         rawLyrics: String,
         titleHint: String,
         artistHint: String,
+        imageUrl: String? = nil,
         onComplete: @escaping (String) -> Void
     ) {
         errorMessage = nil
@@ -37,19 +39,35 @@ final class GenerationQueue: ObservableObject {
                 let queued = try await APIClient.shared.jsonifyLyrics(
                     rawLyrics: rawLyrics,
                     titleHint: titleHint.isEmpty ? nil : titleHint,
-                    artistHint: artistHint.isEmpty ? nil : artistHint
+                    artistHint: artistHint.isEmpty ? nil : artistHint,
+                    imageUrl: imageUrl
                 )
-                let job = PendingJob(id: queued.jobId, title: titleHint)
+                let job = PendingJob(id: queued.jobId, title: titleHint, imageUrl: imageUrl)
                 pendingJobs.append(job)
                 persist()
-                await poll(jobId: queued.jobId, title: titleHint, onComplete: onComplete)
+                await poll(jobId: queued.jobId, title: titleHint, imageUrl: imageUrl, onComplete: onComplete)
             } catch {
                 errorMessage = error.localizedDescription
             }
         }
     }
 
-    private func poll(jobId: String, title: String, onComplete: @escaping (String) -> Void) async {
+    func retranslateSong(songId: String, title: String, imageUrl: String? = nil, feedback: String?) {
+        errorMessage = nil
+        Task {
+            do {
+                let queued = try await APIClient.shared.retranslateSong(songId: songId, feedback: feedback)
+                let job = PendingJob(id: queued.jobId, title: title, imageUrl: imageUrl)
+                pendingJobs.append(job)
+                persist()
+                await poll(jobId: queued.jobId, title: title, imageUrl: imageUrl, onComplete: { _ in })
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func poll(jobId: String, title: String, imageUrl: String? = nil, onComplete: @escaping (String) -> Void) async {
         defer {
             pendingJobs.removeAll { $0.id == jobId }
             persist()

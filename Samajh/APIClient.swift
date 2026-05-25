@@ -62,12 +62,13 @@ actor APIClient {
         return response.candidates
     }
 
-    func jsonifyLyrics(rawLyrics: String, titleHint: String?, artistHint: String?) async throws -> JsonifyQueuedResponse {
+    func jsonifyLyrics(rawLyrics: String, titleHint: String?, artistHint: String?, imageUrl: String? = nil) async throws -> JsonifyQueuedResponse {
         let url = baseURL.appendingPathComponent("/api/jsonify")
         let payload = JsonifyRequest(
             rawLyrics: rawLyrics,
             titleHint: titleHint?.isEmpty == true ? nil : titleHint,
-            artistHint: artistHint?.isEmpty == true ? nil : artistHint
+            artistHint: artistHint?.isEmpty == true ? nil : artistHint,
+            imageUrl: imageUrl
         )
         return try await request(url: url, method: "POST", body: payload)
     }
@@ -98,10 +99,19 @@ actor APIClient {
         return try await request(url: url, method: "POST", body: payload)
     }
 
-    func retranslateSong(songId: String, feedback: String?) async throws -> JsonifyResponse {
+    func retranslateSong(songId: String, feedback: String?) async throws -> JsonifyQueuedResponse {
         let url = baseURL.appendingPathComponent("/api/songs/\(songId)/retranslate")
         let payload = FeedbackRequest(feedback: feedback)
         return try await request(url: url, method: "POST", body: payload)
+    }
+
+    func spotifySearch(query: String) async throws -> [SpotifyTrack] {
+        var components = URLComponents(url: baseURL.appendingPathComponent("/api/spotify/search"), resolvingAgainstBaseURL: false)!
+        components.queryItems = [URLQueryItem(name: "q", value: query)]
+        guard let url = components.url else { throw APIError.invalidURL }
+        struct Resp: Decodable { let tracks: [SpotifyTrack] }
+        let resp: Resp = try await request(url: url, method: "GET", body: Optional<String>.none)
+        return resp.tracks
     }
 
     func deleteSong(songId: String) async throws {
