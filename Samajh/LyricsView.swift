@@ -232,7 +232,7 @@ struct LyricsView: View {
             }
         }
         .onScrollGeometryChange(for: Bool.self) { geo in
-            geo.contentOffset.y > 80
+            geo.contentOffset.y > 32
         } action: { _, pastHeader in
             withAnimation(SamajhMotion.fade) {
                 showNavBarTitle = pastHeader
