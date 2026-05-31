@@ -10,6 +10,10 @@ struct SamajhApp: App {
     @State private var showingAdd = false
     @State private var showSplash = true
 
+    init() {
+        Task.detached(priority: .background) { SamajhFonts.register() }
+    }
+
     var body: some Scene {
         WindowGroup {
             TabView(selection: $selectedTab) {
