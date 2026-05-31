@@ -75,7 +75,7 @@ struct AddLyricsView: View {
             }
         }
         .animation(SamajhMotion.standard, value: canGenerate)
-        .navigationTitle(hasTitle ? "" : "Start with a Song")
+        .navigationTitle("")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             if hasTitle {
@@ -102,7 +102,7 @@ struct AddLyricsView: View {
     // MARK: - Editorial line
 
     private var editorialLine: some View {
-        Text("Every song has something to say.")
+        Text("Some meanings reveal themselves slowly.")
             .font(.custom(SamajhFont.cormorantItalic, size: 19))
             .foregroundStyle(Color.samajhTextMuted)
             .padding(.bottom, 28)
