@@ -279,6 +279,11 @@ private struct LyricLineRow: View {
     let onDeleteLine: () -> Void
     let onToggleFavorite: () -> Void
 
+    @EnvironmentObject private var flightCoordinator: FavoriteFlightCoordinator
+    @State private var rowFrame: CGRect = .zero
+    @State private var isLifting = false
+    @State private var liftGlow: Double = 0
+
     var body: some View {
         if line.isInstrumental == true {
             instrumentalRow
@@ -291,7 +296,7 @@ private struct LyricLineRow: View {
         } else {
             lyricRow
                 .contextMenu {
-                    Button { onToggleFavorite() } label: {
+                    Button { handleToggleFavorite() } label: {
                         Label(
                             isFavorite ? "Remove from Favorites" : "Add to Favorites",
                             systemImage: isFavorite ? "heart.slash" : "heart"
@@ -331,6 +336,7 @@ private struct LyricLineRow: View {
     private var lyricRow: some View {
         HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 10) {
+
                 if showNative {
                     Text(line.text.target)
                         .font(.custom(SamajhFont.notoDevanagari, size: 36))
@@ -372,6 +378,39 @@ private struct LyricLineRow: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.samajhGold.opacity(liftGlow * 0.08))
+                .allowsHitTesting(false)
+        )
+        .scaleEffect(isLifting ? 1.03 : 1.0)
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { rowFrame = geo.frame(in: .global) }
+                    .onChange(of: geo.frame(in: .global)) { _, f in rowFrame = f }
+            }
+        )
+    }
+
+    private func handleToggleFavorite() {
+        onToggleFavorite()
+        guard !isFavorite else { return }  // only animate when adding
+
+        let flyText = String(line.text.roman.split(separator: "\n").first ?? Substring(line.text.roman))
+        let frame = rowFrame
+
+        withAnimation(.easeOut(duration: 0.16)) {
+            isLifting = true
+            liftGlow = 1
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            flightCoordinator.fly(text: flyText, from: frame)
+            withAnimation(.easeOut(duration: 0.22)) {
+                isLifting = false
+                liftGlow = 0
+            }
         }
     }
 

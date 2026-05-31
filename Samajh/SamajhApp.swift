@@ -6,6 +6,7 @@ struct SamajhApp: App {
     @StateObject private var favorites = FavoritesStore()
     @StateObject private var spotify = SpotifyManager()
     @StateObject private var songListVM = SongListViewModel()
+    @StateObject private var flightCoordinator = FavoriteFlightCoordinator()
     @State private var selectedTab = 0
     @State private var showSplash = true
     @State private var splashAnimationDone = false
@@ -48,7 +49,15 @@ struct SamajhApp: App {
             .environmentObject(favorites)
             .environmentObject(spotify)
             .environmentObject(songListVM)
+            .environmentObject(flightCoordinator)
             .task { await songListVM.load() }
+            .overlay {
+                if let flight = flightCoordinator.activeFlight {
+                    FavoriteFlightOverlay(flight: flight) {
+                        flightCoordinator.finish()
+                    }
+                }
+            }
             .overlay {
                 if showSplash {
                     SplashView { splashAnimationDone = true }
