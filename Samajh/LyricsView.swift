@@ -163,11 +163,12 @@ struct LyricsView: View {
                     AlbumThumbnail(url: imageUrl, size: 52)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(lesson.title)
-                            .font(.title2.bold())
+                            .font(.custom(SamajhFont.interBold, size: 22))
+                            .foregroundStyle(Color.samajhTextPrimary)
                         if let artist = lesson.source?.artist, !artist.isEmpty {
                             Text(artist)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .font(.custom(SamajhFont.interRegular, size: 15))
+                                .foregroundStyle(Color.samajhTextSecondary)
                         }
                     }
                 }
@@ -177,9 +178,9 @@ struct LyricsView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         if let label = section.label, !label.isEmpty {
                             Text(label.uppercased())
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .tracking(1.2)
+                                .font(.custom(SamajhFont.interMedium, size: 11))
+                                .foregroundStyle(Color.samajhTextMuted)
+                                .tracking(1.8)
                         }
                         ForEach(section.lines) { line in
                             LyricLineRow(
@@ -321,26 +322,28 @@ private struct LyricLineRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 if showNative {
                     Text(line.text.target)
-                        .font(.title3)
-                        .foregroundStyle(.primary)
+                        .font(.custom(SamajhFont.notoDevanagari, size: 34))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineSpacing(6)
                 }
 
                 romanLine
 
                 if showWordByWord, let s = line.text.wordByWord, !s.isEmpty {
                     Text(s)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 15))
+                        .foregroundStyle(Color.samajhTextMuted)
                 }
                 if showDirect, let s = line.text.direct, !s.isEmpty {
                     Text(s)
-                        .font(.callout.italic())
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 20))
+                        .foregroundStyle(Color.samajhTextSecondary)
                 }
                 if showNatural, let s = line.text.natural, !s.isEmpty {
                     Text(s)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 21))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineSpacing(3)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -371,14 +374,14 @@ private struct LyricLineRow: View {
                         onTokenTap(token)
                     } label: {
                         Text(pair.word)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .font(.custom(SamajhFont.interMedium, size: 19))
+                            .foregroundStyle(Color.samajhGold)
                     }
                     .buttonStyle(.plain)
                 } else {
                     Text(pair.word)
-                        .font(.body)
-                        .foregroundStyle(Color.accentColor)
+                        .font(.custom(SamajhFont.interRegular, size: 19))
+                        .foregroundStyle(Color.samajhGold)
                 }
             }
         }
@@ -420,22 +423,24 @@ private struct TokenSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(token.surface)
-                    .font(.title.bold())
+                    .font(.custom(SamajhFont.notoDevanagari, size: 36))
+                    .foregroundStyle(Color.samajhTextPrimary)
                 Text(token.roman)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .font(.custom(SamajhFont.interRegular, size: 20))
+                    .foregroundStyle(Color.samajhTextRoman)
                 Spacer()
                 Button {
                     TTSPlayer.shared.speak(token.surface)
                 } label: {
                     Image(systemName: "speaker.wave.2")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .font(.body)
+                        .foregroundStyle(Color.samajhTextMuted)
                 }
                 .buttonStyle(.plain)
             }
             Text(token.gloss)
-                .font(.body)
+                .font(.custom(SamajhFont.interRegular, size: 18))
+                .foregroundStyle(Color.samajhTextSecondary)
             Spacer()
         }
         .padding(24)
