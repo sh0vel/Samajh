@@ -26,10 +26,10 @@ extension Color {
 
 enum SamajhFont {
     // Font names — files must be bundled in the Xcode project
-    static let interRegular    = "Inter-Regular"
-    static let interMedium     = "Inter-Medium"
-    static let interSemiBold   = "Inter-SemiBold"
-    static let interBold       = "Inter-Bold"
+    static let interRegular    = "Inter_18pt-Regular"
+    static let interMedium     = "Inter_18pt-Medium"
+    static let interSemiBold   = "Inter_18pt-SemiBold"
+    static let interBold       = "Inter_18pt-Bold"
 
     // Cormorant Garamond — cinematic/literary moments only (onboarding, featured cards, empty states)
     static let cormorantRegular  = "CormorantGaramond-Regular"
@@ -119,18 +119,22 @@ enum SamajhRadius {
 
 enum SamajhFonts {
     static func register() {
-        let fontNames = [
-            SamajhFont.interRegular, SamajhFont.interMedium,
-            SamajhFont.interSemiBold, SamajhFont.interBold,
-            SamajhFont.cormorantRegular, SamajhFont.cormorantMedium,
-            SamajhFont.cormorantSemiBold, SamajhFont.cormorantItalic,
-            SamajhFont.notoDevanagari, SamajhFont.notoNastaliq,
-            SamajhFont.notoBengali,
+        let fontNames: [(name: String, ext: String)] = [
+            (SamajhFont.interRegular, "ttf"),
+            (SamajhFont.interMedium, "ttf"),
+            (SamajhFont.interSemiBold, "ttf"),
+            (SamajhFont.interBold, "ttf"),
+            (SamajhFont.cormorantRegular, "ttf"),
+            (SamajhFont.cormorantMedium, "ttf"),
+            (SamajhFont.cormorantSemiBold, "ttf"),
+            (SamajhFont.cormorantItalic, "ttf"),
+            (SamajhFont.notoDevanagari, "ttf"),
+            (SamajhFont.notoNastaliq, "ttf"),
+            (SamajhFont.notoBengali, "ttf"),
         ]
-        for name in fontNames {
+        for font in fontNames {
             guard
-                let url = Bundle.main.url(forResource: name, withExtension: "ttf")
-                       ?? Bundle.main.url(forResource: name, withExtension: "otf"),
+                let url = Bundle.main.url(forResource: font.name, withExtension: font.ext),
                 let data = try? Data(contentsOf: url) as CFData,
                 let provider = CGDataProvider(data: data),
                 let cgFont = CGFont(provider)
