@@ -5,10 +5,16 @@ struct SamajhApp: App {
     @StateObject private var generationQueue = GenerationQueue()
     @StateObject private var favorites = FavoritesStore()
     @StateObject private var spotify = SpotifyManager()
+    @StateObject private var songListVM = SongListViewModel()
     @State private var selectedTab = 0
     @State private var lastContentTab = 0
     @State private var showingAdd = false
     @State private var showSplash = true
+    @State private var splashAnimationDone = false
+
+    init() {
+        Task.detached(priority: .background) { SamajhFonts.register() }
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -52,11 +58,19 @@ struct SamajhApp: App {
             .environmentObject(generationQueue)
             .environmentObject(favorites)
             .environmentObject(spotify)
+            .environmentObject(songListVM)
+            .task { await songListVM.load() }
             .overlay {
                 if showSplash {
-                    SplashView { withAnimation { showSplash = false } }
+                    SplashView { splashAnimationDone = true }
                         .ignoresSafeArea()
                 }
+            }
+            .onChange(of: splashAnimationDone) { _, done in
+                if done && !songListVM.isLoading { withAnimation { showSplash = false } }
+            }
+            .onChange(of: songListVM.isLoading) { _, loading in
+                if !loading && splashAnimationDone { withAnimation { showSplash = false } }
             }
         }
     }

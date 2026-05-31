@@ -57,6 +57,7 @@ struct LyricsView: View {
     @AppStorage("showWordByWord") private var showWordByWord = false
     @AppStorage("showDirect") private var showDirect = false
     @AppStorage("showNatural") private var showNatural = true
+    @State private var showNavBarTitle = false
     @State private var activeTokenItem: ActiveTokenItem?
     @State private var editingLine: LyricLineModel?
     @State private var showSongRetranslate = false
@@ -73,9 +74,18 @@ struct LyricsView: View {
 
     var body: some View {
         mainContent
-            .navigationTitle(vm.lesson?.title ?? "")
+            .navigationTitle(vm.lesson?.title ?? "")  // drives back-button label in child views
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Title fades in only once the content header scrolls away
+                ToolbarItem(placement: .principal) {
+                    Text(vm.lesson?.title ?? "")
+                        .font(.custom(SamajhFont.interSemiBold, size: 16))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineLimit(1)
+                        .opacity(showNavBarTitle ? 1 : 0)
+                        .animation(SamajhMotion.fade, value: showNavBarTitle)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button("Study Flashcards") { showFlashcards = true }
@@ -106,10 +116,10 @@ struct LyricsView: View {
                     ToggleChip(label: "Direct", isOn: $showDirect)
                     ToggleChip(label: "Natural", isOn: $showNatural)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
-                .background(.bar)
+                .background(Color.samajhBackgroundSecondary.opacity(0.95))
             }
             .toolbar(.hidden, for: .tabBar)
             .task { await vm.load(songId: songId) }
@@ -158,29 +168,24 @@ struct LyricsView: View {
     @ViewBuilder
     private func content(for lesson: LyricLesson) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .center, spacing: 12) {
-                    AlbumThumbnail(url: imageUrl, size: 52)
-                    VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 32) {
+                HStack(alignment: .center, spacing: 14) {
+                    AlbumThumbnail(url: imageUrl, size: 64)
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(lesson.title)
-                            .font(.title2.bold())
+                            .font(.custom(SamajhFont.interBold, size: 22))
+                            .foregroundStyle(Color.samajhTextPrimary)
                         if let artist = lesson.source?.artist, !artist.isEmpty {
                             Text(artist)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .font(.custom(SamajhFont.interRegular, size: 15))
+                                .foregroundStyle(Color.samajhTextSecondary)
                         }
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 12)
 
                 ForEach(lesson.sections) { section in
-                    VStack(alignment: .leading, spacing: 16) {
-                        if let label = section.label, !label.isEmpty {
-                            Text(label.uppercased())
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.tertiary)
-                                .tracking(1.2)
-                        }
+                    VStack(alignment: .leading, spacing: 40) {
                         ForEach(section.lines) { line in
                             LyricLineRow(
                                 line: line,
@@ -218,16 +223,24 @@ struct LyricsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 40)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture {
                 activeTokenItem = nil
             }
         }
+        .onScrollGeometryChange(for: Bool.self) { geo in
+            geo.contentOffset.y > 30
+        } action: { _, pastHeader in
+            withAnimation(SamajhMotion.fade) {
+                showNavBarTitle = pastHeader
+            }
+        }
     }
 }
+
 
 private struct ToggleChip: View {
     let label: String
@@ -238,16 +251,16 @@ private struct ToggleChip: View {
             isOn.toggle()
         } label: {
             Text(label)
-                .font(.caption.weight(.medium))
+                .font(.custom(SamajhFont.interMedium, size: 13))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 9)
                 .background(
                     Capsule()
-                        .fill(isOn ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.12))
+                        .fill(isOn ? Color.samajhGold.opacity(0.18) : Color.samajhSurfaceElevated)
                 )
-                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+                .foregroundStyle(isOn ? Color.samajhGold : Color.samajhTextMuted)
         }
         .buttonStyle(.plain)
     }
@@ -318,29 +331,33 @@ private struct LyricLineRow: View {
 
     private var lyricRow: some View {
         HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 10) {
                 if showNative {
                     Text(line.text.target)
-                        .font(.title3)
-                        .foregroundStyle(.primary)
+                        .font(.custom(SamajhFont.notoDevanagari, size: 36))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineSpacing(4)
+                        .padding(.bottom, -8)
                 }
 
                 romanLine
 
                 if showWordByWord, let s = line.text.wordByWord, !s.isEmpty {
                     Text(s)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 14))
+                        .foregroundStyle(Color.samajhTextMuted)
+                        .padding(.top, 2)
                 }
                 if showDirect, let s = line.text.direct, !s.isEmpty {
                     Text(s)
-                        .font(.callout.italic())
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 20))
+                        .foregroundStyle(Color.samajhTextSecondary)
                 }
                 if showNatural, let s = line.text.natural, !s.isEmpty {
                     Text(s)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 22))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineSpacing(4)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -371,14 +388,14 @@ private struct LyricLineRow: View {
                         onTokenTap(token)
                     } label: {
                         Text(pair.word)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .font(.custom(SamajhFont.interMedium, size: 19))
+                            .foregroundStyle(Color.samajhGold)
                     }
                     .buttonStyle(.plain)
                 } else {
                     Text(pair.word)
-                        .font(.body)
-                        .foregroundStyle(Color.accentColor)
+                        .font(.custom(SamajhFont.interRegular, size: 19))
+                        .foregroundStyle(Color.samajhGold)
                 }
             }
         }
@@ -420,22 +437,24 @@ private struct TokenSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(token.surface)
-                    .font(.title.bold())
+                    .font(.custom(SamajhFont.notoDevanagari, size: 36))
+                    .foregroundStyle(Color.samajhTextPrimary)
                 Text(token.roman)
-                    .font(.title3)
-                    .foregroundStyle(.secondary)
+                    .font(.custom(SamajhFont.interRegular, size: 20))
+                    .foregroundStyle(Color.samajhTextRoman)
                 Spacer()
                 Button {
                     TTSPlayer.shared.speak(token.surface)
                 } label: {
                     Image(systemName: "speaker.wave.2")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
+                        .font(.body)
+                        .foregroundStyle(Color.samajhTextMuted)
                 }
                 .buttonStyle(.plain)
             }
             Text(token.gloss)
-                .font(.body)
+                .font(.custom(SamajhFont.interRegular, size: 18))
+                .foregroundStyle(Color.samajhTextSecondary)
             Spacer()
         }
         .padding(24)

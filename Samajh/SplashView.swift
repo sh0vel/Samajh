@@ -40,7 +40,7 @@ struct SplashView: View {
 
                 ZStack(alignment: .center) {
                     Text("समझ")
-                        .font(.system(size: 42))
+                        .font(.custom(SamajhFont.notoDevanagari, size: 42))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .offset(x: -spreadOffset * spread, y: 6)
                         .scaleEffect(0.1 + 0.9 * spread)
@@ -48,7 +48,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("سمجھ")
-                        .font(.system(size: 44))
+                        .font(.custom(SamajhFont.notoNastaliq, size: 44))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .environment(\.layoutDirection, .rightToLeft)
                         .offset(y: -8)
@@ -57,7 +57,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("সমঝ")
-                        .font(.system(size: 42))
+                        .font(.custom(SamajhFont.notoBengali, size: 42))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .offset(x: spreadOffset * spread, y: 3)
                         .scaleEffect(0.1 + 0.9 * spread)
@@ -65,7 +65,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("samajh")
-                        .font(.system(size: 58, weight: .semibold, design: .serif))
+                        .font(.custom(SamajhFont.cormorantMedium, size: 62))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37))
                         .opacity(samajhOpacity)
                         .scaleEffect(samajhScale)
@@ -74,9 +74,8 @@ struct SplashView: View {
 
                 Spacer()
 
-                ProgressView()
-                    .tint(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.28))
-                    .padding(.bottom, 64)
+                PulsingDots()
+                    .padding(.bottom, 110)
                     .opacity(glowOpacity)
             }
         }
@@ -104,6 +103,38 @@ struct SplashView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     onComplete()
                 }
+            }
+        }
+    }
+}
+
+private struct PulsingDots: View {
+    private let gold = Color(red: 0.84, green: 0.63, blue: 0.37)
+    @State private var phase: Int = 0
+
+    var body: some View {
+        ZStack {
+            // soft glow behind the dots
+            Ellipse()
+                .fill(gold.opacity(0.12))
+                .frame(width: 90, height: 28)
+                .blur(radius: 12)
+
+            HStack(spacing: 14) {
+                ForEach(0..<3) { i in
+                    Circle()
+                        .fill(gold)
+                        .frame(width: 9, height: 9)
+                        .opacity(phase == i ? 1.0 : 0.22)
+                        .scaleEffect(phase == i ? 1.4 : 1.0)
+                        .shadow(color: gold.opacity(phase == i ? 0.7 : 0), radius: 6)
+                        .animation(.easeInOut(duration: 0.4), value: phase)
+                }
+            }
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { _ in
+                phase = (phase + 1) % 3
             }
         }
     }
