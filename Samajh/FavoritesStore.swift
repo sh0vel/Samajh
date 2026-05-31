@@ -23,7 +23,7 @@ final class FavoritesStore: ObservableObject {
     }
 
     func toggle(line: FavoriteLine) {
-        if let idx = favoriteLines.firstIndex(where: { $0.lineId == line.lineId }) {
+        if let idx = favoriteLines.firstIndex(where: { $0.lineId == line.lineId && $0.songId == line.songId }) {
             favoriteLines.remove(at: idx)
         } else {
             favoriteLines.append(line)
@@ -31,8 +31,8 @@ final class FavoritesStore: ObservableObject {
         persist()
     }
 
-    func isFavorite(lineId: String) -> Bool {
-        favoriteLines.contains(where: { $0.lineId == lineId })
+    func isFavorite(lineId: String, songId: String) -> Bool {
+        favoriteLines.contains(where: { $0.lineId == lineId && $0.songId == songId })
     }
 
     private func persist() {

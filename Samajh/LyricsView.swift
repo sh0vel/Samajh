@@ -192,7 +192,7 @@ struct LyricsView: View {
                                 showWordByWord: showWordByWord,
                                 showDirect: showDirect,
                                 showNatural: showNatural,
-                                isFavorite: favorites.isFavorite(lineId: line.lineId),
+                                isFavorite: favorites.isFavorite(lineId: line.lineId, songId: songId),
                                 isRetranslating: vm.retranslatingLineId == line.lineId,
                                 onTokenTap: { token in
                                     activeTokenItem = ActiveTokenItem(token: token)
