@@ -223,12 +223,6 @@ struct LyricsView: View {
                     }
                 }
             }
-            .background(GeometryReader { geo in
-                Color.clear.preference(
-                    key: TitleVisibilityKey.self,
-                    value: geo.frame(in: .named("lyricsScroll")).minY
-                )
-            })
             .padding(.horizontal, 24)
             .padding(.bottom, 48)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -237,19 +231,16 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
-        .coordinateSpace(name: "lyricsScroll")
-        .onPreferenceChange(TitleVisibilityKey.self) { minY in
+        .onScrollGeometryChange(for: Bool.self) { geo in
+            geo.contentOffset.y > 80
+        } action: { _, pastHeader in
             withAnimation(SamajhMotion.fade) {
-                showNavBarTitle = minY < -80
+                showNavBarTitle = pastHeader
             }
         }
     }
 }
 
-private struct TitleVisibilityKey: PreferenceKey {
-    static var defaultValue: CGFloat = .greatestFiniteMagnitude
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
-}
 
 private struct ToggleChip: View {
     let label: String
