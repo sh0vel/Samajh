@@ -35,16 +35,7 @@ struct SongListView: View {
 
     var body: some View {
         Group {
-            if vm.isLoading && vm.songs.isEmpty {
-                VStack(spacing: 16) {
-                    Text("समझ")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundStyle(.accent)
-                    ProgressView()
-                        .tint(.accent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let error = vm.error, vm.songs.isEmpty {
+            if let error = vm.error, vm.songs.isEmpty {
                 VStack(spacing: 12) {
                     Text("Couldn't load songs")
                         .font(.headline)
