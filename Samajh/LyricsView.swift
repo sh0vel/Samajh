@@ -345,7 +345,8 @@ private struct LyricLineRow: View {
                     Text(line.text.target)
                         .font(.custom(SamajhFont.notoDevanagari, size: 36))
                         .foregroundStyle(Color.samajhTextPrimary)
-                        .lineSpacing(8)
+                        .lineSpacing(4)
+                        .padding(.bottom, -8)
                 }
 
                 romanLine
