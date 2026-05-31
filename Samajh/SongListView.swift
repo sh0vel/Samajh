@@ -27,7 +27,7 @@ private let generationPhrases = [
 ]
 
 struct SongListView: View {
-    @StateObject private var vm = SongListViewModel()
+    @EnvironmentObject private var vm: SongListViewModel
     @EnvironmentObject private var queue: GenerationQueue
     @State private var phraseIndex = 0
     @State private var flashedSongId: String?
