@@ -40,7 +40,7 @@ struct SplashView: View {
 
                 ZStack(alignment: .center) {
                     Text("समझ")
-                        .font(.system(size: 42))
+                        .font(.custom(SamajhFont.notoDevanagari, size: 42))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .offset(x: -spreadOffset * spread, y: 6)
                         .scaleEffect(0.1 + 0.9 * spread)
@@ -48,7 +48,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("سمجھ")
-                        .font(.system(size: 44))
+                        .font(.custom(SamajhFont.notoNastaliq, size: 44))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .environment(\.layoutDirection, .rightToLeft)
                         .offset(y: -8)
@@ -57,7 +57,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("সমঝ")
-                        .font(.system(size: 42))
+                        .font(.custom(SamajhFont.notoBengali, size: 42))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
                         .offset(x: spreadOffset * spread, y: 3)
                         .scaleEffect(0.1 + 0.9 * spread)
@@ -65,7 +65,7 @@ struct SplashView: View {
                         .blur(radius: scriptBlur)
 
                     Text("samajh")
-                        .font(.system(size: 58, weight: .semibold, design: .serif))
+                        .font(.custom(SamajhFont.cormorantMedium, size: 62))
                         .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37))
                         .opacity(samajhOpacity)
                         .scaleEffect(samajhScale)
