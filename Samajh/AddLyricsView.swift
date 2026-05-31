@@ -13,233 +13,594 @@ struct AddLyricsView: View {
     @SceneStorage("addLyrics.rawLyrics") private var rawLyrics = ""
 
     // Spotify search
-    @State private var spotifyQuery          = ""
+    @State private var spotifyQuery       = ""
     @State private var spotifyResults: [SpotifyTrack] = []
-    @State private var isSpotifySearching    = false
+    @State private var isSpotifySearching = false
     @State private var spotifySearchTask: Task<Void, Never>?
     @State private var nowPlaying: SpotifyTrack?
     @State private var spotifyError: String?
 
-    // Manual entry toggle
-    @State private var showManual = false
+    // Manual entry
+    @State private var showManual   = false
+    @State private var manualTitle  = ""
+    @State private var manualArtist = ""
 
-    // Lyrics lookup
-    @State private var isLyricsSearching    = false
+    // Lyrics
+    @State private var isLyricsSearching  = false
     @State private var candidates: [LookupCandidate] = []
     @State private var lyricsError: String?
     @State private var selectedCandidateId: String?
-    @State private var didLyricsSearch      = false
+    @State private var didLyricsSearch    = false
+    @State private var isEditingLyrics    = false
 
     @State private var selectedImageUrl: String?
     @State private var generateError: String?
 
     private let maxChars = 30_000
 
-    private var hasTitle: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    private var hasTitle: Bool { !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
     private var canGenerate: Bool {
         hasTitle
             && !rawLyrics.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !isLyricsSearching
     }
 
+    // MARK: - Body
+
     var body: some View {
-        Form {
-            // MARK: - Now Playing
-            if let track = nowPlaying, !hasTitle {
-                Section {
-                    SpotifyResultRow(track: track) { selectTrack(track) }
-                } header: {
-                    Label("Now Playing", systemImage: "music.note")
+        ZStack(alignment: .bottom) {
+            Color.samajhBackground.ignoresSafeArea()
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if hasTitle {
+                        songHeroSection
+                        lyricsSection
+                    } else {
+                        nowPlayingSection
+                        searchSection
+                    }
                 }
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .padding(.bottom, canGenerate ? 140 : 48)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(SamajhMotion.standard, value: hasTitle)
             }
 
-            // MARK: - Search
-            Section {
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .font(.body)
-
-                    TextField("Search Spotify…", text: $spotifyQuery)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
-                        .submitLabel(.search)
-                        .onChange(of: spotifyQuery) { _, q in scheduleSearch(q) }
-
-                    if isSpotifySearching {
-                        ProgressView()
-                    } else if !spotifyQuery.isEmpty {
-                        Button {
-                            spotifyQuery = ""
-                            spotifyResults = []
-                            spotifyError = nil
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(.secondary)
+            if canGenerate {
+                generateButton
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(SamajhMotion.standard, value: canGenerate)
+        .navigationTitle(hasTitle ? "" : "Add Song")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            if hasTitle {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button {
+                        withAnimation(SamajhMotion.standard) { clearSong() }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left").font(.caption.weight(.semibold))
+                            Text("Change").font(.custom(SamajhFont.interRegular, size: 15))
                         }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                ForEach(spotifyResults) { track in
-                    SpotifyResultRow(track: track) { selectTrack(track) }
-                }
-
-                if !spotifyQuery.isEmpty || !spotifyResults.isEmpty {
-                    if !showManual {
-                        Button("Can't find it? Enter manually") {
-                            showManual = true
-                            spotifyQuery = ""
-                            spotifyResults = []
-                        }
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    }
-                }
-
-                if let err = spotifyError {
-                    Text(err).font(.caption).foregroundStyle(.red)
-                }
-
-                if !spotify.isAuthorized {
-                    Button { Task { await connectSpotify() } } label: {
-                        Label("Connect Spotify", systemImage: "music.note")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.samajhTextMuted)
                     }
                     .buttonStyle(.plain)
                 }
             }
-
-            // MARK: - Manual entry
-            if showManual {
-                Section {
-                    TextField("Title", text: $title)
-                        .textInputAutocapitalization(.words)
-                    TextField("Artist (optional)", text: $artist)
-                        .textInputAutocapitalization(.words)
-
-                    Button {
-                        Task { await searchLyrics() }
-                    } label: {
-                        HStack {
-                            if isLyricsSearching {
-                                ProgressView().padding(.trailing, 4)
-                                Text("Searching…")
-                            } else {
-                                Image(systemName: "magnifyingglass")
-                                Text("Find lyrics online")
-                            }
-                            Spacer()
-                        }
-                    }
-                    .disabled(!hasTitle || isLyricsSearching)
-                } header: {
-                    HStack {
-                        Text("Manual Entry")
-                        Spacer()
-                        Button("Cancel") {
-                            showManual = false
-                            title = ""; artist = ""; selectedImageUrl = nil
-                            candidates = []; selectedCandidateId = nil
-                            lyricsError = nil; didLyricsSearch = false
-                        }
-                        .font(.caption)
-                    }
-                }
-            }
-
-            // MARK: - Selected track
-            if hasTitle && !showManual {
-                Section {
-                    HStack(spacing: 12) {
-                        AlbumThumbnail(url: selectedImageUrl, size: 44)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(title).font(.subheadline.weight(.semibold))
-                            if !artist.isEmpty {
-                                Text(artist).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Button {
-                            title = ""; artist = ""; selectedImageUrl = nil
-                            candidates = []; selectedCandidateId = nil
-                            rawLyrics = ""; lyricsError = nil; didLyricsSearch = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    if isLyricsSearching {
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Finding lyrics…").foregroundStyle(.secondary)
-                        }
-                        .font(.callout)
-                    }
-
-                    if let err = lyricsError {
-                        Text(err).font(.callout).foregroundStyle(.red)
-                    }
-
-                    if didLyricsSearch && !isLyricsSearching && candidates.isEmpty && lyricsError == nil {
-                        Text("No lyrics found — paste them below.")
-                            .font(.callout).foregroundStyle(.secondary)
-                    }
-
-                    ForEach(candidates) { candidate in
-                        CandidateRow(candidate: candidate, isSelected: candidate.id == selectedCandidateId)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                selectedCandidateId = candidate.id
-                                rawLyrics = candidate.devanagari
-                            }
-                    }
-                } header: {
-                    Text("Song")
-                }
-            }
-
-            // MARK: - Lyrics
-            if hasTitle {
-                Section {
-                    TextEditor(text: $rawLyrics)
-                        .frame(height: 220)
-                        .font(.body)
-                    HStack {
-                        Spacer()
-                        Text("\(rawLyrics.count) / \(maxChars)")
-                            .font(.caption).foregroundStyle(.tertiary)
-                    }
-                } header: {
-                    Text("Lyrics")
-                } footer: {
-                    Text("Tap a candidate above or paste raw lyrics.")
-                }
-            }
-
-            if let err = generateError {
-                Section {
-                    Text(err).foregroundStyle(.red).font(.callout)
-                }
-            }
         }
-        .navigationTitle("Add Song")
-        .navigationBarTitleDisplayMode(.large)
         .task {
             guard spotify.isAuthorized else { return }
             nowPlaying = try? await spotify.currentlyPlaying()
         }
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Generate") { Task { await submit() } }
-                    .fontWeight(.semibold)
-                    .disabled(!canGenerate)
+    }
+
+    // MARK: - Now Playing
+
+    @ViewBuilder
+    private var nowPlayingSection: some View {
+        if let track = nowPlaying {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Now Playing")
+                    .font(.custom(SamajhFont.interMedium, size: 11))
+                    .foregroundStyle(Color.samajhTextMuted)
+                    .kerning(1.2)
+                    .textCase(.uppercase)
+
+                Button {
+                    withAnimation(SamajhMotion.standard) { selectTrack(track) }
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.samajhGold.opacity(0.2))
+                                .frame(width: 60, height: 60)
+                                .blur(radius: 14)
+                            AlbumThumbnail(url: track.imageUrl, size: 52)
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(track.name)
+                                .font(.custom(SamajhFont.interSemiBold, size: 15))
+                                .foregroundStyle(Color.samajhTextPrimary)
+                                .lineLimit(1)
+                            Text(track.artist)
+                                .font(.custom(SamajhFont.interRegular, size: 13))
+                                .foregroundStyle(Color.samajhTextSecondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(Color.samajhGold)
+                    }
+                    .padding(14)
+                    .background(Color.samajhSurfaceCard)
+                    .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 36)
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+
+    // MARK: - Search
+
+    @ViewBuilder
+    private var searchSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Search field
+            HStack(spacing: 12) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 18))
+                    .foregroundStyle(spotifyQuery.isEmpty ? Color.samajhTextMuted : Color.samajhGold)
+                    .animation(SamajhMotion.fade, value: spotifyQuery.isEmpty)
+
+                ZStack(alignment: .leading) {
+                    if spotifyQuery.isEmpty && !showManual {
+                        Text("What are you listening to?")
+                            .font(.custom(SamajhFont.interRegular, size: 18))
+                            .foregroundStyle(Color.samajhTextMuted)
+                            .allowsHitTesting(false)
+                    }
+                    TextField("", text: $spotifyQuery)
+                        .font(.custom(SamajhFont.interRegular, size: 18))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .tint(Color.samajhGold)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .onChange(of: spotifyQuery) { _, q in
+                            if !showManual { scheduleSearch(q) }
+                        }
+                        .opacity(showManual ? 0 : 1)
+                }
+
+                if isSpotifySearching {
+                    ProgressView().tint(Color.samajhTextMuted).scaleEffect(0.85)
+                } else if !spotifyQuery.isEmpty {
+                    Button {
+                        spotifyQuery = ""; spotifyResults = []; spotifyError = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill").foregroundStyle(Color.samajhTextMuted)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 20)
+
+            Rectangle()
+                .fill(Color.samajhSurfaceElevated)
+                .frame(height: 1)
+
+            // Manual entry morphs in below the field
+            if showManual {
+                manualEntrySection
+            } else {
+                // Live Spotify results
+                if !spotifyResults.isEmpty {
+                    VStack(spacing: 0) {
+                        ForEach(spotifyResults) { track in
+                            spotifyRow(track: track)
+                        }
+                    }
+                    .padding(.top, 4)
+                    .transition(.opacity)
+                }
+
+                if let err = spotifyError {
+                    Text(err)
+                        .font(.custom(SamajhFont.interRegular, size: 13))
+                        .foregroundStyle(.red.opacity(0.8))
+                        .padding(.top, 16)
+                }
+
+                // Fallback + Spotify connect nudge
+                VStack(alignment: .leading, spacing: 16) {
+                    if !spotifyQuery.isEmpty {
+                        Button {
+                            withAnimation(SamajhMotion.standard) {
+                                showManual = true
+                                spotifyQuery = ""
+                                spotifyResults = []
+                            }
+                        } label: {
+                            Text("Can't find it? Enter manually")
+                                .font(.custom(SamajhFont.interRegular, size: 14))
+                                .foregroundStyle(Color.samajhTextMuted)
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    if !spotify.isAuthorized {
+                        Button { Task { await connectSpotify() } } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "music.note").font(.caption)
+                                Text("Connect Spotify to see what's playing")
+                                    .font(.custom(SamajhFont.interRegular, size: 13))
+                            }
+                            .foregroundStyle(Color.samajhGold.opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.top, 24)
             }
         }
+    }
+
+    // MARK: - Manual Entry
+
+    @ViewBuilder
+    private var manualEntrySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Manual Entry")
+                    .font(.custom(SamajhFont.interMedium, size: 11))
+                    .foregroundStyle(Color.samajhTextMuted)
+                    .kerning(1.2)
+                    .textCase(.uppercase)
+                Spacer()
+                Button {
+                    withAnimation(SamajhMotion.standard) {
+                        showManual = false; manualTitle = ""; manualArtist = ""
+                    }
+                } label: {
+                    Text("Cancel")
+                        .font(.custom(SamajhFont.interRegular, size: 13))
+                        .foregroundStyle(Color.samajhTextMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.top, 24)
+            .padding(.bottom, 16)
+
+            darkTextField("Song title", text: $manualTitle)
+                .textInputAutocapitalization(.words)
+
+            Rectangle().fill(Color.samajhSurfaceElevated).frame(height: 1)
+
+            darkTextField("Artist (optional)", text: $manualArtist)
+                .textInputAutocapitalization(.words)
+
+            Rectangle().fill(Color.samajhSurfaceElevated).frame(height: 1)
+
+            Button {
+                title = manualTitle
+                artist = manualArtist
+                showManual = false
+                Task { await searchLyrics() }
+            } label: {
+                HStack(spacing: 8) {
+                    if isLyricsSearching {
+                        ProgressView().tint(Color.samajhGold).scaleEffect(0.85)
+                        Text("Searching…")
+                    } else {
+                        Image(systemName: "magnifyingglass")
+                        Text("Find lyrics")
+                    }
+                }
+                .font(.custom(SamajhFont.interMedium, size: 15))
+                .foregroundStyle(manualTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? Color.samajhTextMuted : Color.samajhGold)
+            }
+            .buttonStyle(.plain)
+            .disabled(manualTitle.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLyricsSearching)
+            .padding(.top, 20)
+        }
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    // MARK: - Song Hero
+
+    @ViewBuilder
+    private var songHeroSection: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Spacer()
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.samajhGold.opacity(0.1))
+                        .frame(width: 165, height: 165)
+                        .blur(radius: 28)
+                    AlbumThumbnail(url: selectedImageUrl, size: 140)
+                }
+                Spacer()
+            }
+            .padding(.bottom, 24)
+
+            Text(title)
+                .font(.custom(SamajhFont.interSemiBold, size: 22))
+                .foregroundStyle(Color.samajhTextPrimary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+
+            if !artist.isEmpty {
+                Text(artist)
+                    .font(.custom(SamajhFont.interRegular, size: 16))
+                    .foregroundStyle(Color.samajhTextSecondary)
+                    .padding(.top, 5)
+            }
+        }
+        .padding(.bottom, 40)
+        .transition(.opacity.combined(with: .scale(0.96, anchor: .top)))
+    }
+
+    // MARK: - Lyrics
+
+    @ViewBuilder
+    private var lyricsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Rectangle()
+                .fill(Color.samajhSurfaceElevated)
+                .frame(height: 1)
+                .padding(.bottom, 28)
+
+            if isLyricsSearching {
+                shimmerLines
+            } else if candidates.count > 1 {
+                candidateCarousel
+            } else if !rawLyrics.isEmpty {
+                lyricsPreview
+            } else if let err = lyricsError {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(err)
+                        .font(.custom(SamajhFont.interRegular, size: 13))
+                        .foregroundStyle(.red.opacity(0.7))
+                    pasteLyricsArea
+                }
+            } else if didLyricsSearch {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("No lyrics found")
+                        .font(.custom(SamajhFont.interRegular, size: 14))
+                        .foregroundStyle(Color.samajhTextMuted)
+                    pasteLyricsArea
+                }
+            }
+        }
+    }
+
+    // Shimmer placeholder while fetching
+    private var shimmerLines: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach([220, 170, 210, 150] as [CGFloat], id: \.self) { w in
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.samajhSurfaceElevated)
+                    .frame(width: w, height: 24)
+            }
+        }
+    }
+
+    // Native script preview with fade + optional edit
+    private var lyricsPreview: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            let lines = rawLyrics
+                .split(separator: "\n", omittingEmptySubsequences: true)
+                .prefix(6)
+                .joined(separator: "\n")
+
+            Text(lines)
+                .font(.custom(SamajhFont.notoDevanagari, size: 22))
+                .foregroundStyle(Color.samajhTextSecondary)
+                .lineSpacing(6)
+                .mask {
+                    LinearGradient(
+                        colors: [.black, .black, .black.opacity(0.2), .clear],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                }
+
+            if isEditingLyrics {
+                TextEditor(text: $rawLyrics)
+                    .font(.custom(SamajhFont.notoDevanagari, size: 18))
+                    .foregroundStyle(Color.samajhTextPrimary)
+                    .tint(Color.samajhGold)
+                    .frame(minHeight: 180)
+                    .scrollContentBackground(.hidden)
+                    .padding(.top, 12)
+                    .transition(.opacity)
+            }
+
+            Button {
+                withAnimation(SamajhMotion.standard) { isEditingLyrics.toggle() }
+            } label: {
+                Text(isEditingLyrics ? "Done editing" : "Edit lyrics")
+                    .font(.custom(SamajhFont.interRegular, size: 13))
+                    .foregroundStyle(Color.samajhTextMuted)
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 16)
+        }
+    }
+
+    // Swipeable candidate cards
+    private var candidateCarousel: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Multiple versions found")
+                .font(.custom(SamajhFont.interMedium, size: 11))
+                .foregroundStyle(Color.samajhTextMuted)
+                .kerning(1.2)
+                .textCase(.uppercase)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(candidates) { candidate in
+                        let isSelected = candidate.id == selectedCandidateId
+                        Button {
+                            withAnimation(SamajhMotion.fade) {
+                                selectedCandidateId = candidate.id
+                                rawLyrics = candidate.devanagari
+                            }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(candidate.title)
+                                            .font(.custom(SamajhFont.interSemiBold, size: 13))
+                                            .foregroundStyle(Color.samajhTextPrimary)
+                                            .lineLimit(1)
+                                        if !candidate.artist.isEmpty {
+                                            Text(candidate.artist)
+                                                .font(.custom(SamajhFont.interRegular, size: 12))
+                                                .foregroundStyle(Color.samajhTextSecondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    Spacer()
+                                    if isSelected {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .foregroundStyle(Color.samajhGold)
+                                    }
+                                }
+
+                                Text(previewLines(candidate.devanagari))
+                                    .font(.custom(SamajhFont.notoDevanagari, size: 16))
+                                    .foregroundStyle(Color.samajhTextSecondary)
+                                    .lineLimit(3)
+                                    .lineSpacing(4)
+
+                                ConfidenceDot(level: candidate.confidence)
+                            }
+                            .padding(16)
+                            .frame(width: 260, alignment: .leading)
+                            .background(Color.samajhSurfaceCard)
+                            .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: SamajhRadius.small)
+                                    .stroke(isSelected ? Color.samajhGold.opacity(0.5) : Color.clear, lineWidth: 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 2)
+                .padding(.trailing, 24)
+            }
+            .padding(.horizontal, -24) // bleed to edges
+        }
+    }
+
+    // Editable paste area when no lyrics found
+    private var pasteLyricsArea: some View {
+        ZStack(alignment: .topLeading) {
+            if rawLyrics.isEmpty {
+                Text("Paste lyrics here…")
+                    .font(.custom(SamajhFont.notoDevanagari, size: 20))
+                    .foregroundStyle(Color.samajhTextMuted.opacity(0.5))
+                    .padding(.top, 8)
+                    .padding(.leading, 4)
+                    .allowsHitTesting(false)
+            }
+            TextEditor(text: $rawLyrics)
+                .font(.custom(SamajhFont.notoDevanagari, size: 20))
+                .foregroundStyle(Color.samajhTextPrimary)
+                .tint(Color.samajhGold)
+                .frame(minHeight: 180)
+                .scrollContentBackground(.hidden)
+        }
+        .padding(16)
+        .background(Color.samajhSurfaceCard)
+        .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+    }
+
+    // MARK: - Generate Button
+
+    private var generateButton: some View {
+        VStack(spacing: 0) {
+            LinearGradient(
+                colors: [Color.samajhBackground.opacity(0), Color.samajhBackground],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 48)
+            .allowsHitTesting(false)
+
+            Button { Task { await submit() } } label: {
+                HStack(spacing: 8) {
+                    Text("Generate lesson")
+                        .font(.custom(SamajhFont.interSemiBold, size: 17))
+                    Image(systemName: "arrow.right")
+                        .font(.callout.weight(.semibold))
+                }
+                .foregroundStyle(Color.samajhBackground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 18)
+                .background(Color.samajhGold)
+                .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.button))
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 32)
+            .background(Color.samajhBackground)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func spotifyRow(track: SpotifyTrack) -> some View {
+        Button {
+            withAnimation(SamajhMotion.standard) { selectTrack(track) }
+        } label: {
+            HStack(spacing: 12) {
+                AlbumThumbnail(url: track.imageUrl, size: 44)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(track.name)
+                        .font(.custom(SamajhFont.interRegular, size: 15))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineLimit(1)
+                    if !track.artist.isEmpty {
+                        Text(track.artist)
+                            .font(.custom(SamajhFont.interRegular, size: 13))
+                            .foregroundStyle(Color.samajhTextSecondary)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 12)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func darkTextField(_ placeholder: String, text: Binding<String>) -> some View {
+        ZStack(alignment: .leading) {
+            if text.wrappedValue.isEmpty {
+                Text(placeholder)
+                    .font(.custom(SamajhFont.interRegular, size: 17))
+                    .foregroundStyle(Color.samajhTextMuted)
+                    .allowsHitTesting(false)
+            }
+            TextField("", text: text)
+                .font(.custom(SamajhFont.interRegular, size: 17))
+                .foregroundStyle(Color.samajhTextPrimary)
+                .tint(Color.samajhGold)
+        }
+        .padding(.vertical, 16)
+    }
+
+    private func previewLines(_ text: String) -> String {
+        text.split(separator: "\n", omittingEmptySubsequences: true).prefix(3).joined(separator: "\n")
     }
 
     // MARK: - Actions
@@ -254,6 +615,14 @@ struct AddLyricsView: View {
         spotifyResults = []
         spotifyError = nil
         Task { await searchLyrics() }
+    }
+
+    private func clearSong() {
+        title = ""; artist = ""; selectedImageUrl = nil
+        candidates = []; selectedCandidateId = nil
+        rawLyrics = ""; lyricsError = nil
+        didLyricsSearch = false; isEditingLyrics = false
+        generateError = nil
     }
 
     private func scheduleSearch(_ q: String) {
@@ -283,10 +652,8 @@ struct AddLyricsView: View {
     }
 
     private func searchLyrics() async {
-        lyricsError = nil
-        candidates = []
-        selectedCandidateId = nil
-        isLyricsSearching = true
+        lyricsError = nil; candidates = []
+        selectedCandidateId = nil; isLyricsSearching = true
         didLyricsSearch = true
         defer { isLyricsSearching = false }
         do {
@@ -314,7 +681,8 @@ struct AddLyricsView: View {
         candidates = []; selectedCandidateId = nil
         lyricsError = nil; didLyricsSearch = false
         showManual = false; spotifyQuery = ""; spotifyResults = []
-        generateError = nil
+        generateError = nil; isEditingLyrics = false
+        manualTitle = ""; manualArtist = ""
     }
 
     private func submit() async {
@@ -322,7 +690,7 @@ struct AddLyricsView: View {
         let l = rawLyrics.trimmingCharacters(in: .whitespacesAndNewlines)
         let a = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !t.isEmpty else { generateError = "Title is required"; return }
-        guard !l.isEmpty else { generateError = "Please enter lyrics or pick a candidate"; return }
+        guard !l.isEmpty else { generateError = "Please add lyrics"; return }
         let img = selectedImageUrl
         queue.start(rawLyrics: l, titleHint: t, artistHint: a, imageUrl: img, onComplete: { _ in })
         clearForm()
@@ -330,81 +698,19 @@ struct AddLyricsView: View {
     }
 }
 
-// MARK: - Spotify result row
+// MARK: - Confidence dot
 
-private struct SpotifyResultRow: View {
-    let track: SpotifyTrack
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 10) {
-                AlbumThumbnail(url: track.imageUrl, size: 40)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(track.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
-                    if !track.artist.isEmpty {
-                        Text(track.artist)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Candidate row
-
-private struct CandidateRow: View {
-    let candidate: LookupCandidate
-    let isSelected: Bool
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(candidate.title).font(.subheadline.weight(.semibold))
-                    if !candidate.artist.isEmpty {
-                        Text(candidate.artist).font(.caption).foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-                ConfidenceBadge(level: candidate.confidence)
-                if isSelected {
-                    Image(systemName: "checkmark.circle.fill").foregroundStyle(Color.accentColor)
-                }
-            }
-            Text(previewLines(candidate.devanagari))
-                .font(.callout).foregroundStyle(.secondary).lineLimit(3)
-            if !candidate.notes.isEmpty {
-                Text(candidate.notes).font(.caption2).foregroundStyle(.tertiary)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func previewLines(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: true).prefix(3).joined(separator: "\n")
-    }
-}
-
-private struct ConfidenceBadge: View {
+private struct ConfidenceDot: View {
     let level: String
     private var color: Color {
         switch level { case "high": .green; case "medium": .orange; case "low": .red; default: .gray }
     }
     var body: some View {
-        Text(level.uppercased())
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6).padding(.vertical, 2)
-            .background(Capsule().fill(color.opacity(0.15)))
-            .foregroundStyle(color)
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(level.capitalized)
+                .font(.custom(SamajhFont.interRegular, size: 11))
+                .foregroundStyle(color.opacity(0.8))
+        }
     }
 }
