@@ -74,8 +74,7 @@ struct SplashView: View {
 
                 Spacer()
 
-                ProgressView()
-                    .tint(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.28))
+                PulsingDots()
                     .padding(.bottom, 64)
                     .opacity(glowOpacity)
             }
@@ -104,6 +103,29 @@ struct SplashView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     onComplete()
                 }
+            }
+        }
+    }
+}
+
+private struct PulsingDots: View {
+    private let gold = Color(red: 0.84, green: 0.63, blue: 0.37)
+    @State private var phase: Int = 0
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(0..<3) { i in
+                Circle()
+                    .fill(gold)
+                    .frame(width: 6, height: 6)
+                    .opacity(phase == i ? 0.9 : 0.2)
+                    .scaleEffect(phase == i ? 1.3 : 1.0)
+                    .animation(.easeInOut(duration: 0.4), value: phase)
+            }
+        }
+        .onAppear {
+            Timer.scheduledTimer(withTimeInterval: 0.45, repeats: true) { _ in
+                phase = (phase + 1) % 3
             }
         }
     }
