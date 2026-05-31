@@ -401,16 +401,18 @@ struct AddLyricsView: View {
                 .prefix(6)
                 .joined(separator: "\n")
 
-            Text(lines)
-                .font(.custom(SamajhFont.notoDevanagari, size: 22))
-                .foregroundStyle(Color.samajhTextSecondary)
-                .lineSpacing(6)
-                .mask {
-                    LinearGradient(
-                        colors: [.black, .black, .black.opacity(0.2), .clear],
-                        startPoint: .top, endPoint: .bottom
-                    )
-                }
+            if !isEditingLyrics {
+                Text(lines)
+                    .font(.custom(SamajhFont.notoDevanagari, size: 22))
+                    .foregroundStyle(Color.samajhTextSecondary)
+                    .lineSpacing(6)
+                    .mask {
+                        LinearGradient(
+                            colors: [.black, .black, .black.opacity(0.2), .clear],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    }
+            }
 
             if isEditingLyrics {
                 TextEditor(text: $rawLyrics)
@@ -538,7 +540,7 @@ struct AddLyricsView: View {
 
             Button { Task { await submit() } } label: {
                 HStack(spacing: 8) {
-                    Text("Generate lesson")
+                    Text("Generate")
                         .font(.custom(SamajhFont.interSemiBold, size: 17))
                     Image(systemName: "arrow.right")
                         .font(.callout.weight(.semibold))
