@@ -497,31 +497,75 @@ private struct TokenSheet: View {
     let token: LyricToken
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(token.surface)
-                    .font(.custom(SamajhFont.notoDevanagari, size: 36))
-                    .foregroundStyle(Color.samajhTextPrimary)
-                Text(token.roman)
-                    .font(.custom(SamajhFont.interRegular, size: 20))
-                    .foregroundStyle(Color.samajhTextRoman)
-                Spacer()
-                Button {
-                    TTSPlayer.shared.speak(token.surface)
-                } label: {
-                    Image(systemName: "speaker.wave.2")
-                        .font(.body)
-                        .foregroundStyle(Color.samajhTextMuted)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+
+                // ── Header ──────────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(token.surface)
+                            .font(.custom(SamajhFont.notoDevanagari, size: 38))
+                            .foregroundStyle(Color.samajhTextPrimary)
+                        Text(token.roman)
+                            .font(.custom(SamajhFont.interRegular, size: 18))
+                            .foregroundStyle(Color.samajhGold)
+                    }
+                    Spacer()
+                    Button {
+                        TTSPlayer.shared.speak(token.surface)
+                    } label: {
+                        Image(systemName: "speaker.wave.2")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.samajhTextMuted)
+                            .padding(10)
+                            .background(Color.samajhSurfaceElevated)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .padding(.bottom, 12)
+
+                // ── Gloss ────────────────────────────────────────────────────
+                Text(token.gloss)
+                    .font(.custom(SamajhFont.interRegular, size: 20))
+                    .foregroundStyle(Color.samajhTextPrimary)
+                    .padding(.bottom, 28)
+
+                // ── Detail sections ──────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 0) {
+                    tokenSection("Roots", value: token.etymology)
+                    tokenSection("Register", value: token.register)
+                    tokenSection("Nearby", value: token.spectrum)
+                    tokenSection("Verb", value: token.verbForm)
+                    tokenSection("Grammar", value: token.grammaticalNote)
+                }
             }
-            Text(token.gloss)
-                .font(.custom(SamajhFont.interRegular, size: 18))
-                .foregroundStyle(Color.samajhTextSecondary)
-            Spacer()
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    @ViewBuilder
+    private func tokenSection(_ label: String, value: String?) -> some View {
+        if let value, !value.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Divider()
+                    .overlay(Color.samajhSurfaceElevated)
+                    .padding(.vertical, 12)
+
+                Text(label.uppercased())
+                    .font(.custom(SamajhFont.interMedium, size: 10))
+                    .foregroundStyle(Color.samajhTextMuted)
+                    .kerning(1.4)
+
+                Text(value)
+                    .font(.custom(SamajhFont.interRegular, size: 15))
+                    .foregroundStyle(Color.samajhTextSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.bottom, 4)
+        }
     }
 }
 

@@ -64,6 +64,11 @@ struct LyricToken: Codable, Identifiable, Hashable {
     let surface: String
     let roman: String
     let gloss: String
+    let etymology: String?
+    let register: String?
+    let spectrum: String?
+    let verbForm: String?
+    let grammaticalNote: String?
 }
 
 struct JsonifyRequest: Codable {
