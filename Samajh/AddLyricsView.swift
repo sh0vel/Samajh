@@ -57,6 +57,7 @@ struct AddLyricsView: View {
                         songHeroSection
                         lyricsSection
                     } else {
+                        editorialLine
                         nowPlayingSection
                         searchSection
                     }
@@ -74,7 +75,7 @@ struct AddLyricsView: View {
             }
         }
         .animation(SamajhMotion.standard, value: canGenerate)
-        .navigationTitle(hasTitle ? "" : "Add Song")
+        .navigationTitle(hasTitle ? "" : "Start with a Song")
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             if hasTitle {
@@ -96,6 +97,15 @@ struct AddLyricsView: View {
             guard spotify.isAuthorized else { return }
             nowPlaying = try? await spotify.currentlyPlaying()
         }
+    }
+
+    // MARK: - Editorial line
+
+    private var editorialLine: some View {
+        Text("Every song has something to say.")
+            .font(.custom(SamajhFont.cormorantItalic, size: 19))
+            .foregroundStyle(Color.samajhTextMuted)
+            .padding(.bottom, 28)
     }
 
     // MARK: - Now Playing
@@ -161,13 +171,13 @@ struct AddLyricsView: View {
 
                 ZStack(alignment: .leading) {
                     if spotifyQuery.isEmpty && !showManual {
-                        Text("What are you listening to?")
-                            .font(.custom(SamajhFont.interRegular, size: 18))
+                        Text("Find a song")
+                            .font(.custom(SamajhFont.interRegular, size: 20))
                             .foregroundStyle(Color.samajhTextMuted)
                             .allowsHitTesting(false)
                     }
                     TextField("", text: $spotifyQuery)
-                        .font(.custom(SamajhFont.interRegular, size: 18))
+                        .font(.custom(SamajhFont.interRegular, size: 20))
                         .foregroundStyle(Color.samajhTextPrimary)
                         .tint(Color.samajhGold)
                         .autocorrectionDisabled()
@@ -189,7 +199,7 @@ struct AddLyricsView: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.vertical, 20)
+            .padding(.vertical, 28)
 
             Rectangle()
                 .fill(Color.samajhSurfaceElevated)
@@ -235,20 +245,50 @@ struct AddLyricsView: View {
                     }
 
                     if !spotify.isAuthorized {
-                        Button { Task { await connectSpotify() } } label: {
-                            HStack(spacing: 6) {
-                                Image(systemName: "music.note").font(.caption)
-                                Text("Connect Spotify to see what's playing")
-                                    .font(.custom(SamajhFont.interRegular, size: 13))
-                            }
-                            .foregroundStyle(Color.samajhGold.opacity(0.6))
-                        }
-                        .buttonStyle(.plain)
+                        spotifyConnectCard
                     }
                 }
                 .padding(.top, 24)
             }
         }
+    }
+
+    // MARK: - Spotify Connect Card
+
+    private var spotifyConnectCard: some View {
+        Button { Task { await connectSpotify() } } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "music.note.list")
+                    .font(.title3)
+                    .foregroundStyle(Color.samajhGold)
+                    .frame(width: 32)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Currently Playing")
+                        .font(.custom(SamajhFont.interMedium, size: 11))
+                        .foregroundStyle(Color.samajhTextMuted)
+                        .kerning(1.1)
+                        .textCase(.uppercase)
+                    Text("Connect Spotify")
+                        .font(.custom(SamajhFont.interSemiBold, size: 15))
+                        .foregroundStyle(Color.samajhGold)
+                    Text("Automatically import the song you're listening to.")
+                        .font(.custom(SamajhFont.interRegular, size: 13))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(Color.samajhTextMuted)
+            }
+            .padding(16)
+            .background(Color.samajhSurfaceCard)
+            .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Manual Entry
