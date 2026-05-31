@@ -69,6 +69,7 @@ struct LyricToken: Codable, Identifiable, Hashable {
     let spectrum: String?
     let verbForm: String?
     let grammaticalNote: String?
+    let songContext: String?
 }
 
 struct JsonifyRequest: Codable {
