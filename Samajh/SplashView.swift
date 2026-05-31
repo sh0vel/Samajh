@@ -75,7 +75,7 @@ struct SplashView: View {
                 Spacer()
 
                 PulsingDots()
-                    .padding(.bottom, 64)
+                    .padding(.bottom, 110)
                     .opacity(glowOpacity)
             }
         }
@@ -113,14 +113,23 @@ private struct PulsingDots: View {
     @State private var phase: Int = 0
 
     var body: some View {
-        HStack(spacing: 10) {
-            ForEach(0..<3) { i in
-                Circle()
-                    .fill(gold)
-                    .frame(width: 6, height: 6)
-                    .opacity(phase == i ? 0.9 : 0.2)
-                    .scaleEffect(phase == i ? 1.3 : 1.0)
-                    .animation(.easeInOut(duration: 0.4), value: phase)
+        ZStack {
+            // soft glow behind the dots
+            Ellipse()
+                .fill(gold.opacity(0.12))
+                .frame(width: 90, height: 28)
+                .blur(radius: 12)
+
+            HStack(spacing: 14) {
+                ForEach(0..<3) { i in
+                    Circle()
+                        .fill(gold)
+                        .frame(width: 9, height: 9)
+                        .opacity(phase == i ? 1.0 : 0.22)
+                        .scaleEffect(phase == i ? 1.4 : 1.0)
+                        .shadow(color: gold.opacity(phase == i ? 0.7 : 0), radius: 6)
+                        .animation(.easeInOut(duration: 0.4), value: phase)
+                }
             }
         }
         .onAppear {
