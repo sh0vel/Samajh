@@ -187,6 +187,7 @@ struct AddLyricsView: View {
                         }
                         .opacity(showManual ? 0 : 1)
                 }
+                .frame(maxWidth: .infinity)
 
                 if isSpotifySearching {
                     ProgressView().tint(Color.samajhTextMuted).scaleEffect(0.85)
