@@ -59,6 +59,7 @@ struct LyricsView: View {
     @AppStorage("showDirect") private var showDirect = false
     @AppStorage("showNatural") private var showNatural = true
     @State private var showNavBarTitle = false
+    @State private var lineHighlightOpacity: Double = 0
     @State private var activeTokenItem: ActiveTokenItem?
     @State private var editingLine: LyricLineModel?
     @State private var showSongRetranslate = false
@@ -221,6 +222,13 @@ struct LyricsView: View {
                                 }
                             )
                             .id(line.lineId)
+                            .overlay(alignment: .leading) {
+                                if line.lineId == targetLineId {
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .fill(Color.samajhGold.opacity(0.11 * lineHighlightOpacity))
+                                        .allowsHitTesting(false)
+                                }
+                            }
                         }
                     }
                 }
@@ -242,10 +250,16 @@ struct LyricsView: View {
         }
         .task(id: lesson.sections.isEmpty) {
             guard let targetLineId, !lesson.sections.isEmpty else { return }
+            // Wait for layout to settle, then scroll
             try? await Task.sleep(nanoseconds: 350_000_000)
             withAnimation(.easeInOut(duration: 0.4)) {
                 proxy.scrollTo(targetLineId, anchor: .center)
             }
+            // After scroll completes, bloom the highlight then fade it over 2s
+            try? await Task.sleep(nanoseconds: 550_000_000)
+            withAnimation(.easeIn(duration: 0.25)) { lineHighlightOpacity = 1 }
+            try? await Task.sleep(nanoseconds: 700_000_000)
+            withAnimation(.easeOut(duration: 2.0)) { lineHighlightOpacity = 0 }
         }
         } // ScrollViewReader
     }

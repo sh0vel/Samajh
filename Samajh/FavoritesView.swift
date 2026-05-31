@@ -38,16 +38,7 @@ struct FavoritesView: View {
                         Section(group.songTitle) {
                             ForEach(group.lines) { line in
                                 NavigationLink(value: SongTarget(songId: line.songId, lineId: line.lineId)) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(line.roman)
-                                            .font(.body.weight(.medium))
-                                        if let nat = line.natural, !nat.isEmpty {
-                                            Text(nat)
-                                                .font(.callout)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                    .padding(.vertical, 2)
+                                    FavoriteLineLabel(line: line)
                                 }
                                 .contextMenu {
                                     Button(role: .destructive) {
@@ -63,5 +54,29 @@ struct FavoritesView: View {
             }
         }
         .navigationTitle("Favorites")
+    }
+}
+
+private struct FavoriteLineLabel: View {
+    let line: FavoriteLine
+    @GestureState private var isPressed = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(line.roman)
+                .font(.body.weight(.medium))
+            if let nat = line.natural, !nat.isEmpty {
+                Text(nat)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(.vertical, 2)
+        .scaleEffect(isPressed ? 0.97 : 1.0, anchor: .leading)
+        .animation(.easeOut(duration: 0.12), value: isPressed)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, state, _ in state = true }
+        )
     }
 }
