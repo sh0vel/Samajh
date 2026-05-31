@@ -80,8 +80,7 @@ struct LyricsView: View {
                 // Title fades in only once the content header scrolls away
                 ToolbarItem(placement: .principal) {
                     Text(vm.lesson?.title ?? "")
-                        .font(.custom(SamajhFont.interSemiBold, size: 16))
-                        .foregroundStyle(Color.samajhTextPrimary)
+                        .font(.headline)
                         .lineLimit(1)
                         .opacity(showNavBarTitle ? 1 : 0)
                         .animation(SamajhMotion.fade, value: showNavBarTitle)
