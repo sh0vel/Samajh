@@ -51,15 +51,16 @@ struct SongListView: View {
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.songs.isEmpty && !queue.isGenerating {
-                VStack(spacing: 16) {
-                    Text("समझ")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundStyle(.accent)
+                VStack(spacing: 20) {
+                    Text("samajh")
+                        .font(.custom(SamajhFont.cormorantMedium, size: 52))
+                        .foregroundStyle(Color.samajhGold)
                     Text("Every song holds a lesson.")
-                        .font(.title3.weight(.medium))
-                    Text("Tap Add to start your first lesson.")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                        .font(.custom(SamajhFont.interRegular, size: 17))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                    Text("Tap + to start your first lesson.")
+                        .font(.custom(SamajhFont.interRegular, size: 14))
+                        .foregroundStyle(Color.samajhTextMuted)
                 }
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -96,25 +97,26 @@ struct SongListView: View {
                     }
                     ForEach(vm.songs) { song in
                         NavigationLink(value: song) {
-                            HStack(spacing: 10) {
-                                AlbumThumbnail(url: song.imageUrl, size: 44)
-                                VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 12) {
+                                AlbumThumbnail(url: song.imageUrl, size: 48)
+                                VStack(alignment: .leading, spacing: 6) {
                                     Text(song.title)
-                                        .font(.headline)
+                                        .font(.custom(SamajhFont.interSemiBold, size: 16))
+                                        .foregroundStyle(Color.samajhTextPrimary)
                                     HStack {
                                         if let artist = song.artist, !artist.isEmpty {
                                             Text(artist)
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
+                                                .font(.custom(SamajhFont.interRegular, size: 14))
+                                                .foregroundStyle(Color.samajhTextSecondary)
                                         }
                                         Spacer()
                                         Text(DateFormatting.relative(from: song.createdAt))
-                                            .font(.caption)
-                                            .foregroundStyle(.tertiary)
+                                            .font(.custom(SamajhFont.interRegular, size: 12))
+                                            .foregroundStyle(Color.samajhTextMuted)
                                     }
                                 }
                             }
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 6)
                         }
                         .listRowBackground(
                             Color.accentColor

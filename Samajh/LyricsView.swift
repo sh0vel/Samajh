@@ -106,10 +106,10 @@ struct LyricsView: View {
                     ToggleChip(label: "Direct", isOn: $showDirect)
                     ToggleChip(label: "Natural", isOn: $showNatural)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
                 .frame(maxWidth: .infinity)
-                .background(.bar)
+                .background(Color.samajhBackgroundSecondary.opacity(0.95))
             }
             .toolbar(.hidden, for: .tabBar)
             .task { await vm.load(songId: songId) }
@@ -158,30 +158,24 @@ struct LyricsView: View {
     @ViewBuilder
     private func content(for lesson: LyricLesson) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                HStack(alignment: .center, spacing: 12) {
-                    AlbumThumbnail(url: imageUrl, size: 52)
-                    VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 32) {
+                HStack(alignment: .center, spacing: 14) {
+                    AlbumThumbnail(url: imageUrl, size: 56)
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(lesson.title)
-                            .font(.custom(SamajhFont.interBold, size: 22))
+                            .font(.custom(SamajhFont.interBold, size: 20))
                             .foregroundStyle(Color.samajhTextPrimary)
                         if let artist = lesson.source?.artist, !artist.isEmpty {
                             Text(artist)
-                                .font(.custom(SamajhFont.interRegular, size: 15))
+                                .font(.custom(SamajhFont.interRegular, size: 14))
                                 .foregroundStyle(Color.samajhTextSecondary)
                         }
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 12)
 
                 ForEach(lesson.sections) { section in
-                    VStack(alignment: .leading, spacing: 16) {
-                        if let label = section.label, !label.isEmpty {
-                            Text(label.uppercased())
-                                .font(.custom(SamajhFont.interMedium, size: 11))
-                                .foregroundStyle(Color.samajhTextMuted)
-                                .tracking(1.8)
-                        }
+                    VStack(alignment: .leading, spacing: 40) {
                         ForEach(section.lines) { line in
                             LyricLineRow(
                                 line: line,
@@ -219,8 +213,8 @@ struct LyricsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 40)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 48)
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -239,16 +233,16 @@ private struct ToggleChip: View {
             isOn.toggle()
         } label: {
             Text(label)
-                .font(.caption.weight(.medium))
+                .font(.custom(SamajhFont.interMedium, size: 13))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 8)
+                .padding(.vertical, 9)
                 .background(
                     Capsule()
-                        .fill(isOn ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.12))
+                        .fill(isOn ? Color.samajhGold.opacity(0.18) : Color.samajhSurfaceElevated)
                 )
-                .foregroundStyle(isOn ? Color.accentColor : Color.primary)
+                .foregroundStyle(isOn ? Color.samajhGold : Color.samajhTextMuted)
         }
         .buttonStyle(.plain)
     }
@@ -319,20 +313,21 @@ private struct LyricLineRow: View {
 
     private var lyricRow: some View {
         HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 10) {
                 if showNative {
                     Text(line.text.target)
-                        .font(.custom(SamajhFont.notoDevanagari, size: 34))
+                        .font(.custom(SamajhFont.notoDevanagari, size: 36))
                         .foregroundStyle(Color.samajhTextPrimary)
-                        .lineSpacing(6)
+                        .lineSpacing(8)
                 }
 
                 romanLine
 
                 if showWordByWord, let s = line.text.wordByWord, !s.isEmpty {
                     Text(s)
-                        .font(.custom(SamajhFont.interRegular, size: 15))
+                        .font(.custom(SamajhFont.interRegular, size: 14))
                         .foregroundStyle(Color.samajhTextMuted)
+                        .padding(.top, 2)
                 }
                 if showDirect, let s = line.text.direct, !s.isEmpty {
                     Text(s)
@@ -341,9 +336,9 @@ private struct LyricLineRow: View {
                 }
                 if showNatural, let s = line.text.natural, !s.isEmpty {
                     Text(s)
-                        .font(.custom(SamajhFont.interRegular, size: 21))
+                        .font(.custom(SamajhFont.interRegular, size: 22))
                         .foregroundStyle(Color.samajhTextPrimary)
-                        .lineSpacing(3)
+                        .lineSpacing(4)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
