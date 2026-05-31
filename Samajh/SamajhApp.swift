@@ -8,6 +8,7 @@ struct SamajhApp: App {
     @State private var selectedTab = 0
     @State private var lastContentTab = 0
     @State private var showingAdd = false
+    @State private var showSplash = true
 
     var body: some Scene {
         WindowGroup {
@@ -51,6 +52,12 @@ struct SamajhApp: App {
             .environmentObject(generationQueue)
             .environmentObject(favorites)
             .environmentObject(spotify)
+            .overlay {
+                if showSplash {
+                    SplashView { withAnimation { showSplash = false } }
+                        .ignoresSafeArea()
+                }
+            }
         }
     }
 }

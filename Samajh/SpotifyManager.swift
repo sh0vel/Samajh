@@ -145,7 +145,7 @@ final class SpotifyManager: ObservableObject {
     private var isAuthenticating = false
     private var activeSession:   ASWebAuthenticationSession?
 
-    init() { loadFromKeychain() }
+    init() { Task { self.loadFromKeychain() } }
 
     // MARK: - Auth
 
