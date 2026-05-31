@@ -183,12 +183,6 @@ struct LyricsView: View {
                     }
                 }
                 .padding(.top, 12)
-                .background(GeometryReader { geo in
-                    Color.clear.preference(
-                        key: TitleVisibilityKey.self,
-                        value: geo.frame(in: .global).maxY
-                    )
-                })
 
                 ForEach(lesson.sections) { section in
                     VStack(alignment: .leading, spacing: 40) {
@@ -229,6 +223,12 @@ struct LyricsView: View {
                     }
                 }
             }
+            .background(GeometryReader { geo in
+                Color.clear.preference(
+                    key: TitleVisibilityKey.self,
+                    value: geo.frame(in: .named("lyricsScroll")).minY
+                )
+            })
             .padding(.horizontal, 24)
             .padding(.bottom, 48)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -237,10 +237,10 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
-        .onPreferenceChange(TitleVisibilityKey.self) { maxY in
+        .coordinateSpace(name: "lyricsScroll")
+        .onPreferenceChange(TitleVisibilityKey.self) { minY in
             withAnimation(SamajhMotion.fade) {
-                // 100pt ≈ status bar + nav bar height; show title once header exits that zone
-                showNavBarTitle = maxY < 100
+                showNavBarTitle = minY < -80
             }
         }
     }
