@@ -2,9 +2,8 @@ import SwiftUI
 import UIKit
 
 struct AddLyricsView: View {
-    let onSuccess: (String) -> Void
+    let onGenerate: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var queue: GenerationQueue
     @EnvironmentObject private var spotify: SpotifyManager
 
@@ -46,207 +45,199 @@ struct AddLyricsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                // MARK: - Now Playing
-                if let track = nowPlaying, !hasTitle {
-                    Section {
-                        SpotifyResultRow(track: track) { selectTrack(track) }
-                    } header: {
-                        Label("Now Playing", systemImage: "music.note")
-                    }
-                }
-
-                // MARK: - Search
+        Form {
+            // MARK: - Now Playing
+            if let track = nowPlaying, !hasTitle {
                 Section {
-                    // Search bar row
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(.secondary)
-                            .font(.body)
+                    SpotifyResultRow(track: track) { selectTrack(track) }
+                } header: {
+                    Label("Now Playing", systemImage: "music.note")
+                }
+            }
 
-                        TextField("Search Spotify…", text: $spotifyQuery)
-                            .autocorrectionDisabled()
-                            .textInputAutocapitalization(.never)
-                            .submitLabel(.search)
-                            .onChange(of: spotifyQuery) { _, q in scheduleSearch(q) }
+            // MARK: - Search
+            Section {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .font(.body)
 
-                        if isSpotifySearching {
-                            ProgressView()
-                        } else if !spotifyQuery.isEmpty {
-                            Button {
-                                spotifyQuery = ""
-                                spotifyResults = []
-                                spotifyError = nil
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    TextField("Search Spotify…", text: $spotifyQuery)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .submitLabel(.search)
+                        .onChange(of: spotifyQuery) { _, q in scheduleSearch(q) }
 
-                    // Live Spotify results
-                    ForEach(spotifyResults) { track in
-                        SpotifyResultRow(track: track) { selectTrack(track) }
-                    }
-
-                    // Footer actions (shown once user has typed or results are present)
-                    if !spotifyQuery.isEmpty || !spotifyResults.isEmpty {
-                        if !showManual {
-                            Button("Can't find it? Enter manually") {
-                                showManual = true
-                                spotifyQuery = ""
-                                spotifyResults = []
-                            }
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if let err = spotifyError {
-                        Text(err).font(.caption).foregroundStyle(.red)
-                    }
-
-                    if !spotify.isAuthorized {
-                        Button { Task { await connectSpotify() } } label: {
-                            Label("Connect Spotify", systemImage: "music.note")
-                                .font(.callout)
+                    if isSpotifySearching {
+                        ProgressView()
+                    } else if !spotifyQuery.isEmpty {
+                        Button {
+                            spotifyQuery = ""
+                            spotifyResults = []
+                            spotifyError = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
                     }
                 }
 
-                // MARK: - Manual entry
-                if showManual {
-                    Section {
-                        TextField("Title", text: $title)
-                            .textInputAutocapitalization(.words)
-                        TextField("Artist (optional)", text: $artist)
-                            .textInputAutocapitalization(.words)
+                ForEach(spotifyResults) { track in
+                    SpotifyResultRow(track: track) { selectTrack(track) }
+                }
 
-                        Button {
-                            Task { await searchLyrics() }
-                        } label: {
-                            HStack {
-                                if isLyricsSearching {
-                                    ProgressView().padding(.trailing, 4)
-                                    Text("Searching…")
-                                } else {
-                                    Image(systemName: "magnifyingglass")
-                                    Text("Find lyrics online")
-                                }
-                                Spacer()
-                            }
+                if !spotifyQuery.isEmpty || !spotifyResults.isEmpty {
+                    if !showManual {
+                        Button("Can't find it? Enter manually") {
+                            showManual = true
+                            spotifyQuery = ""
+                            spotifyResults = []
                         }
-                        .disabled(!hasTitle || isLyricsSearching)
-                    } header: {
-                        HStack {
-                            Text("Manual Entry")
-                            Spacer()
-                            Button("Cancel") {
-                                showManual = false
-                                title = ""; artist = ""; selectedImageUrl = nil
-                                candidates = []; selectedCandidateId = nil
-                                lyricsError = nil; didLyricsSearch = false
-                            }
-                            .font(.caption)
-                        }
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     }
                 }
 
-                // MARK: - Selected track (from Spotify)
-                if hasTitle && !showManual {
-                    Section {
-                        HStack(spacing: 12) {
-                            AlbumThumbnail(url: selectedImageUrl, size: 44)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(title).font(.subheadline.weight(.semibold))
-                                if !artist.isEmpty {
-                                    Text(artist).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer()
-                            Button {
-                                title = ""; artist = ""; selectedImageUrl = nil
-                                candidates = []; selectedCandidateId = nil
-                                rawLyrics = ""; lyricsError = nil; didLyricsSearch = false
-                            } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                if let err = spotifyError {
+                    Text(err).font(.caption).foregroundStyle(.red)
+                }
 
-                        if isLyricsSearching {
-                            HStack(spacing: 8) {
-                                ProgressView()
-                                Text("Finding lyrics…").foregroundStyle(.secondary)
-                            }
+                if !spotify.isAuthorized {
+                    Button { Task { await connectSpotify() } } label: {
+                        Label("Connect Spotify", systemImage: "music.note")
                             .font(.callout)
-                        }
-
-                        if let err = lyricsError {
-                            Text(err).font(.callout).foregroundStyle(.red)
-                        }
-
-                        if didLyricsSearch && !isLyricsSearching && candidates.isEmpty && lyricsError == nil {
-                            Text("No lyrics found — paste them below.")
-                                .font(.callout).foregroundStyle(.secondary)
-                        }
-
-                        ForEach(candidates) { candidate in
-                            CandidateRow(candidate: candidate, isSelected: candidate.id == selectedCandidateId)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    selectedCandidateId = candidate.id
-                                    rawLyrics = candidate.devanagari
-                                }
-                        }
-                    } header: {
-                        Text("Song")
+                            .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.plain)
                 }
+            }
 
-                // MARK: - Lyrics paste (visible once we have a title)
-                if hasTitle {
-                    Section {
-                        TextEditor(text: $rawLyrics)
-                            .frame(height: 220)
-                            .font(.body)
+            // MARK: - Manual entry
+            if showManual {
+                Section {
+                    TextField("Title", text: $title)
+                        .textInputAutocapitalization(.words)
+                    TextField("Artist (optional)", text: $artist)
+                        .textInputAutocapitalization(.words)
+
+                    Button {
+                        Task { await searchLyrics() }
+                    } label: {
                         HStack {
+                            if isLyricsSearching {
+                                ProgressView().padding(.trailing, 4)
+                                Text("Searching…")
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                Text("Find lyrics online")
+                            }
                             Spacer()
-                            Text("\(rawLyrics.count) / \(maxChars)")
-                                .font(.caption).foregroundStyle(.tertiary)
                         }
-                    } header: {
-                        Text("Lyrics")
-                    } footer: {
-                        Text("Tap a candidate above or paste raw lyrics.")
+                    }
+                    .disabled(!hasTitle || isLyricsSearching)
+                } header: {
+                    HStack {
+                        Text("Manual Entry")
+                        Spacer()
+                        Button("Cancel") {
+                            showManual = false
+                            title = ""; artist = ""; selectedImageUrl = nil
+                            candidates = []; selectedCandidateId = nil
+                            lyricsError = nil; didLyricsSearch = false
+                        }
+                        .font(.caption)
                     }
                 }
+            }
 
-                if let err = generateError {
-                    Section {
-                        Text(err).foregroundStyle(.red).font(.callout)
+            // MARK: - Selected track
+            if hasTitle && !showManual {
+                Section {
+                    HStack(spacing: 12) {
+                        AlbumThumbnail(url: selectedImageUrl, size: 44)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(title).font(.subheadline.weight(.semibold))
+                            if !artist.isEmpty {
+                                Text(artist).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        Button {
+                            title = ""; artist = ""; selectedImageUrl = nil
+                            candidates = []; selectedCandidateId = nil
+                            rawLyrics = ""; lyricsError = nil; didLyricsSearch = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
                     }
+
+                    if isLyricsSearching {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Finding lyrics…").foregroundStyle(.secondary)
+                        }
+                        .font(.callout)
+                    }
+
+                    if let err = lyricsError {
+                        Text(err).font(.callout).foregroundStyle(.red)
+                    }
+
+                    if didLyricsSearch && !isLyricsSearching && candidates.isEmpty && lyricsError == nil {
+                        Text("No lyrics found — paste them below.")
+                            .font(.callout).foregroundStyle(.secondary)
+                    }
+
+                    ForEach(candidates) { candidate in
+                        CandidateRow(candidate: candidate, isSelected: candidate.id == selectedCandidateId)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedCandidateId = candidate.id
+                                rawLyrics = candidate.devanagari
+                            }
+                    }
+                } header: {
+                    Text("Song")
                 }
             }
-            .navigationTitle("Add Song")
-            .navigationBarTitleDisplayMode(.inline)
-            .task {
-                guard spotify.isAuthorized else { return }
-                nowPlaying = try? await spotify.currentlyPlaying()
+
+            // MARK: - Lyrics
+            if hasTitle {
+                Section {
+                    TextEditor(text: $rawLyrics)
+                        .frame(height: 220)
+                        .font(.body)
+                    HStack {
+                        Spacer()
+                        Text("\(rawLyrics.count) / \(maxChars)")
+                            .font(.caption).foregroundStyle(.tertiary)
+                    }
+                } header: {
+                    Text("Lyrics")
+                } footer: {
+                    Text("Tap a candidate above or paste raw lyrics.")
+                }
             }
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { clearAndDismiss() }
+
+            if let err = generateError {
+                Section {
+                    Text(err).foregroundStyle(.red).font(.callout)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Generate") { Task { await submit() } }
-                        .fontWeight(.semibold)
-                        .disabled(!canGenerate)
-                }
+            }
+        }
+        .navigationTitle("Add Song")
+        .navigationBarTitleDisplayMode(.large)
+        .task {
+            guard spotify.isAuthorized else { return }
+            nowPlaying = try? await spotify.currentlyPlaying()
+        }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Generate") { Task { await submit() } }
+                    .fontWeight(.semibold)
+                    .disabled(!canGenerate)
             }
         }
     }
@@ -318,9 +309,12 @@ struct AddLyricsView: View {
         catch { spotifyError = error.localizedDescription }
     }
 
-    private func clearAndDismiss() {
+    private func clearForm() {
         title = ""; artist = ""; rawLyrics = ""; selectedImageUrl = nil
-        dismiss()
+        candidates = []; selectedCandidateId = nil
+        lyricsError = nil; didLyricsSearch = false
+        showManual = false; spotifyQuery = ""; spotifyResults = []
+        generateError = nil
     }
 
     private func submit() async {
@@ -330,8 +324,9 @@ struct AddLyricsView: View {
         guard !t.isEmpty else { generateError = "Title is required"; return }
         guard !l.isEmpty else { generateError = "Please enter lyrics or pick a candidate"; return }
         let img = selectedImageUrl
-        clearAndDismiss()
-        queue.start(rawLyrics: l, titleHint: t, artistHint: a, imageUrl: img, onComplete: onSuccess)
+        queue.start(rawLyrics: l, titleHint: t, artistHint: a, imageUrl: img, onComplete: { _ in })
+        clearForm()
+        onGenerate()
     }
 }
 
