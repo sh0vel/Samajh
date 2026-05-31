@@ -37,7 +37,7 @@ struct FavoritesView: View {
                     ForEach(grouped, id: \.songId) { group in
                         Section(group.songTitle) {
                             ForEach(group.lines) { line in
-                                NavigationLink(value: line.songId) {
+                                NavigationLink(value: SongTarget(songId: line.songId, lineId: line.lineId)) {
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(line.roman)
                                             .font(.body.weight(.medium))

@@ -51,6 +51,7 @@ final class LyricsViewModel: ObservableObject {
 struct LyricsView: View {
     let songId: String
     var imageUrl: String? = nil
+    var targetLineId: String? = nil
     @StateObject private var vm = LyricsViewModel()
 
     @AppStorage("showNative") private var showNative = false
@@ -166,6 +167,7 @@ struct LyricsView: View {
 
     @ViewBuilder
     private func content(for lesson: LyricLesson) -> some View {
+        ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 HStack(alignment: .center, spacing: 14) {
@@ -218,6 +220,7 @@ struct LyricsView: View {
                                     favorites.toggle(line: fl)
                                 }
                             )
+                            .id(line.lineId)
                         }
                     }
                 }
@@ -237,6 +240,14 @@ struct LyricsView: View {
                 showNavBarTitle = pastHeader
             }
         }
+        .task(id: lesson.sections.isEmpty) {
+            guard let targetLineId, !lesson.sections.isEmpty else { return }
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            withAnimation(.easeInOut(duration: 0.4)) {
+                proxy.scrollTo(targetLineId, anchor: .center)
+            }
+        }
+        } // ScrollViewReader
     }
 }
 

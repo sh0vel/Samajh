@@ -38,8 +38,8 @@ struct SamajhApp: App {
                         .navigationDestination(for: SongMetadata.self) { song in
                             LyricsView(songId: song.songId, imageUrl: song.imageUrl)
                         }
-                        .navigationDestination(for: String.self) { songId in
-                            LyricsView(songId: songId)
+                        .navigationDestination(for: SongTarget.self) { target in
+                            LyricsView(songId: target.songId, imageUrl: target.imageUrl, targetLineId: target.lineId)
                         }
                 }
                 .tabItem { Label("Favorites", systemImage: "heart") }
