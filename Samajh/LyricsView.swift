@@ -531,25 +531,16 @@ private struct TokenSheet: View {
                     .foregroundStyle(Color.samajhTextPrimary)
                     .padding(.bottom, 28)
 
-                // ── Detail sections (priority order per spec) ────────────────
+                // ── Detail sections ──────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 0) {
-                    tokenSection("Compared with", value: token.spectrum)
-                    tokenSection("Register", value: token.register)
+                    tokenSection("Similar words", value: token.spectrum)
                     tokenSection("In this song", value: token.songContext)
-                    tokenSection("Grammar", value: grammarNote)
-                    tokenSection("Roots", value: token.etymology)
                 }
             }
             .padding(24)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .scrollBounceBehavior(.basedOnSize)
-    }
-
-    private var grammarNote: String? {
-        let parts = [token.verbForm, token.grammaticalNote]
-            .compactMap { $0?.isEmpty == false ? $0 : nil }
-        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
     @ViewBuilder
