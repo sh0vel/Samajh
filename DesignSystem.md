@@ -1,184 +1,191 @@
-# Samajh — Visual Design System & UI Direction v1
+# Samajh — Visual Design System
 
-# Core Visual Identity
+## Identity
 
-Samajh should feel like:
-- warm light in darkness
-- headphones at 1am
-- poetry margins
-- old feelings in a modern interface
-- quiet emotional immersion
+Samajh is a dark-mode-first product. It is not a language-learning tool, productivity tool, AI chatbot, or music player. It is an emotional understanding experience built around music, poetry, and meaning.
 
-The visual language should combine:
-- modern minimalism
-- literary warmth
-- South Asian emotional texture
-- cinematic restraint
+> The visual identity should feel like listening to a song alone at night and finally understanding what it is trying to say.
 
-NOT:
-- neon cyberpunk
-- glassmorphism overload
-- generic SaaS minimalism
-- Spotify clone UI
-- luxury-brand gold aesthetics
+**Keywords:** intimate · reflective · cinematic · literary · warm · timeless · immersive
+
+**Avoid:** gamification · educational aesthetics · productivity tooling · bright startup visuals · Spotify clones · AI assistant aesthetics
 
 ---
 
-# Primary Color Palette
+## Theme Philosophy
 
-## Background
+Dark mode is the canonical Samajh experience. All primary design decisions are made in dark mode first.
 
-Primary Background: #000000
-Secondary Background: #0E0E11
-Elevated Surface: #151518
-Card Surface: #1B1B20
-
-The app should remain VERY dark overall.
-Avoid gray-heavy backgrounds.
-The darkness is important for immersion.
+Light mode is a secondary adaptation — it should feel like reading poetry on warm paper, not a color inversion.
 
 ---
 
-# Accent Color
+## Color Tokens
 
-Primary Accent: Warm Amber Gold #D6A05F
-Secondary Accent: Muted Sand Gold #B88952
-Pressed/Active Gold: #E3B16D
+All `samajh*` colors in `DesignSystem.swift` use `UIColor(dynamicProvider:)` and adapt automatically to the system appearance.
 
-This gold should feel: candlelit, nostalgic, analog, poetic
-NOT: metallic, shiny, crypto/gaming gold
+### Backgrounds
 
-Gold should be used sparingly:
-- active tabs, selected modes, lyric emphasis, playback highlights, important actions
-Never flood the interface with gold.
+| Token | Dark | Light |
+|---|---|---|
+| `samajhBackground` | `#000000` | `#F7F3EC` |
+| `samajhBackgroundSecondary` | `#0E0E11` | `#F2EEE7` |
+| `samajhSurfaceElevated` | `#151518` | `#EDEAD2` |
+| `samajhSurfaceCard` | `#1B1B20` | `#FFFFFF` |
 
----
+The app should remain predominantly dark with strong contrast and generous negative space.
 
-# Text Colors
+### Accent Gold
 
-Primary Text: #F5F2EB
-Secondary Text: #B8B1A7
-Muted Text: #7E7A73
-Disabled: #5A5752
-Romanized lyrics: #C8C1B7
+| Token | Dark | Light |
+|---|---|---|
+| `samajhGold` | `#D6A05F` | `#B88952` |
+| `samajhGoldMuted` | `#B88952` | `#A07543` |
+| `samajhGoldPressed` | `#E3B16D` | `#C89960` |
 
-Natural translation should feel slightly warmer than Direct.
+The accent should feel like candlelight or warm evening light. Use sparingly.
 
----
+**Allowed:** active states · selected tabs · playback progress · focused lyric lines · important actions
+**Avoid:** large areas of gold · decorative fills · backgrounds
 
-# Typography
+### Text
 
-## English UI + Romanization
-Inter (alt: Satoshi) — modern, readable, emotionally neutral
+| Token | Dark | Light |
+|---|---|---|
+| `samajhTextPrimary` | `#F5F2EB` | `#2B2B2B` |
+| `samajhTextSecondary` | `#B8B1A7` | `#5A5752` |
+| `samajhTextMuted` | `#7E7A73` | `#7E7A73` |
+| `samajhTextDisabled` | `#5A5752` | `#A09C98` |
+| `samajhTextRoman` | `#C8C1B7` | `#6B6863` |
 
-## Serif Accent (IMPORTANT — use sparingly)
-Cormorant Garamond (alt: EB Garamond)
-Use for: poetic headers, onboarding, pull quotes, featured lyric moments
-DO NOT use everywhere. Roughly 90–95% of app should be Inter + Noto.
-Cormorant should appear only in cinematic or literary moments: onboarding headlines,
-featured lyric cards, empty states, section dividers, occasional emotionally significant pull quotes.
-NOT for: core UI, navigation, buttons, body text, translation layers, flashcards, settings.
+The interface should prioritize readability and comfortable long-form reading.
 
-## Native Script Fonts
-Hindi / Devanagari: Noto Serif Devanagari
-Urdu: Noto Nastaliq Urdu
-Bangla: Noto Serif Bengali
+### Accent Color Asset
 
-Native script should feel elegant and respected, not compressed UI text.
+`AccentColor.colorset`: `#D6A05F` dark / `#B88952` light — drives system controls (buttons, toggles, links).
 
 ---
 
-# Typography Hierarchy
+## Typography
 
-Song Title: 32px Bold, tight tracking
-Artist: 20px Medium, muted color
-Original Lyric: 34–38px Semibold, warm white or gold accent (dominates visually)
-Romanization: 20–22px Regular, soft muted tone (supportive, not primary)
-Word translation: 16px Muted, compact
-Direct translation: 22px Neutral white
-Natural translation: 24px Slightly warmer white, more line spacing (emotionally fuller)
+### UI Font: Inter
 
----
+Use for: navigation · controls · translations · metadata · settings · flashcards
 
-# Spacing Philosophy
+| Constant | Weight | Usage |
+|---|---|---|
+| `SamajhFont.interRegular` | 400 | Body, romanization, translations |
+| `SamajhFont.interMedium` | 500 | Subtitles, chips |
+| `SamajhFont.interSemiBold` | 600 | Song titles, nav bar title |
+| `SamajhFont.interBold` | 700 | Hero title in LyricsView header |
 
-- large vertical spacing
-- generous margins
-- low information density
-- Lyrics should never feel cramped
-- The interface should feel contemplative
+### Native Script Fonts
 
----
+| Language | Font | Constant |
+|---|---|---|
+| Hindi | Noto Serif Devanagari | `SamajhFont.notoDevanagari` |
+| Urdu | Noto Nastaliq Urdu | `SamajhFont.notoNastaliq` |
+| Bangla | Noto Serif Bengali | `SamajhFont.notoBengali` |
 
-# Card Design
+Original lyrics must always feel elegant and respected. Native script text should visually dominate translation layers.
 
-- soft corners: 20–28px radius
-- low contrast borders
-- subtle elevation only
-Avoid: sharp rectangles, strong shadows, hard outlines
+### Accent Serif: Cormorant Garamond
 
----
+**Use only for:** onboarding headlines · empty states · featured lyric moments · editorial pull quotes
 
-# Blur Usage
+**Never use for:** navigation · settings · translations · flashcards · body content · long reading
 
-Very subtle background blur only for: tab bar, overlays, player surfaces
-Keep blur restrained. Avoid "frosted glass everywhere."
+**Target:** less than 10% of visible typography.
 
----
+### Font Scale (LyricsView)
 
-# Motion System
-
-- soft, slow, emotionally invisible
-- Timing: 220–350ms
-- Use: fade transitions, subtle opacity shifts, gentle movement
-Avoid: bounce physics, exaggerated spring motion, flashy transitions
+| Layer | Font | Size | Color |
+|---|---|---|---|
+| Native lyric | Noto Serif (script-matched) | 36pt | `samajhTextPrimary` |
+| Romanization | Inter Regular | 19pt | `samajhGold` |
+| Word-by-word | Inter Regular | 14pt | `samajhTextMuted` |
+| Direct translation | Inter Regular | 20pt | `samajhTextSecondary` |
+| Natural translation | Inter Regular | 22pt | `samajhTextPrimary` |
 
 ---
 
-# Iconography
+## Navigation Pattern
 
-- thin, elegant, understated
-- SF Symbols style or Lucide
-Avoid: filled cartoon icons, colorful icons, thick iconography
+### Collapsing Header (LyricsView)
 
----
-
-# Tab Bar
-
-- floating, softly blurred, slightly translucent, pill-shaped
-- Should feel like a listening control surface
-NOT a utility navigation bar
+- Content header: album art (64pt) + title (Inter Bold 22pt) + artist (Inter Regular 15pt)
+- Navigation bar title is **hidden** when the content header is visible
+- As the user scrolls and the header exits the nav bar zone (~100pt from top of screen), the nav bar title fades in with a 220ms ease-out
+- Implemented via `TitleVisibilityKey: PreferenceKey` tracking the header's global `maxY`
+- `.principal` ToolbarItem drives the nav bar title; `.navigationTitle()` is retained for back-button behavior in child views
 
 ---
 
-# Album Art Usage
+## Spacing
 
-- slightly subdued, do NOT oversaturate UI with artwork colors
-- Lyrics and meaning remain primary
-- Music artwork is emotional framing, not the centerpiece
+The application should feel calm and spacious.
 
----
+- Generous vertical rhythm
+- Large margins (24pt horizontal standard)
+- Low information density
+- Text should breathe
+- Users should never feel rushed
 
-# Flashcards
+### LyricsView Rhythm
 
-Should feel like: lyric fragments, remembered thoughts, saved emotional moments
-NOT: educational index cards
-
-Use: larger typography, soft transitions, emotional spacing
-Avoid: quiz aesthetics, correctness indicators, red/green grading
-
----
-
-# Design References
-
-Emotional: Apple Music lyric screens, MUBI, Readwise Reader, high-end poetry books,
-Japanese music apps, film subtitles, vinyl sleeve typography
-
-NOT: Duolingo, Notion, Spotify, Quizlet, gaming interfaces
+- Section spacing: 40pt between lyric lines
+- Internal lyric row spacing: 10pt between layers
+- Native script line spacing: 8pt
+- Natural translation line spacing: 4pt
+- Horizontal padding: 24pt
+- Bottom padding: 48pt (chip bar clearance)
 
 ---
 
-# Product Feeling
+## Motion
 
-The user should feel: "I'm slowly understanding something beautiful."
-NOT: "I'm completing a language exercise."
+Motion should be subtle and nearly invisible.
+
+| Token | Duration | Curve |
+|---|---|---|
+| `SamajhMotion.standard` | 280ms | easeInOut |
+| `SamajhMotion.slow` | 350ms | easeInOut |
+| `SamajhMotion.fade` | 220ms | easeOut |
+
+**Use:** fades · opacity transitions · gentle movement
+**Avoid:** bounce effects · exaggerated springs · flashy interactions
+
+---
+
+## Shape
+
+| Token | Radius |
+|---|---|
+| `SamajhRadius.card` | 24pt |
+| `SamajhRadius.button` | 14pt |
+| `SamajhRadius.small` | 10pt |
+
+---
+
+## Lyrics Experience
+
+The lyrics screen is the emotional center of the product.
+
+**Priority order:**
+1. Original lyric
+2. Meaning
+3. Navigation
+
+Not controls, buttons, or features.
+
+The currently selected lyric or meaning layer should feel gently illuminated — not aggressively highlighted.
+
+---
+
+## Product Feeling
+
+> "Someone is helping me understand a song I already love."
+
+Not: "I am completing a language exercise."
+
+Every design decision should reinforce emotional understanding, reflection, and connection to music.

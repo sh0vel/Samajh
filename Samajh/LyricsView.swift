@@ -57,6 +57,7 @@ struct LyricsView: View {
     @AppStorage("showWordByWord") private var showWordByWord = false
     @AppStorage("showDirect") private var showDirect = false
     @AppStorage("showNatural") private var showNatural = true
+    @State private var showNavBarTitle = false
     @State private var activeTokenItem: ActiveTokenItem?
     @State private var editingLine: LyricLineModel?
     @State private var showSongRetranslate = false
@@ -73,9 +74,18 @@ struct LyricsView: View {
 
     var body: some View {
         mainContent
-            .navigationTitle(vm.lesson?.title ?? "")
+            .navigationTitle(vm.lesson?.title ?? "")  // drives back-button label in child views
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // Title fades in only once the content header scrolls away
+                ToolbarItem(placement: .principal) {
+                    Text(vm.lesson?.title ?? "")
+                        .font(.custom(SamajhFont.interSemiBold, size: 16))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .lineLimit(1)
+                        .opacity(showNavBarTitle ? 1 : 0)
+                        .animation(SamajhMotion.fade, value: showNavBarTitle)
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
                         Button("Study Flashcards") { showFlashcards = true }
@@ -160,19 +170,25 @@ struct LyricsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
                 HStack(alignment: .center, spacing: 14) {
-                    AlbumThumbnail(url: imageUrl, size: 56)
-                    VStack(alignment: .leading, spacing: 5) {
+                    AlbumThumbnail(url: imageUrl, size: 64)
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(lesson.title)
-                            .font(.custom(SamajhFont.interBold, size: 20))
+                            .font(.custom(SamajhFont.interBold, size: 22))
                             .foregroundStyle(Color.samajhTextPrimary)
                         if let artist = lesson.source?.artist, !artist.isEmpty {
                             Text(artist)
-                                .font(.custom(SamajhFont.interRegular, size: 14))
+                                .font(.custom(SamajhFont.interRegular, size: 15))
                                 .foregroundStyle(Color.samajhTextSecondary)
                         }
                     }
                 }
                 .padding(.top, 12)
+                .background(GeometryReader { geo in
+                    Color.clear.preference(
+                        key: TitleVisibilityKey.self,
+                        value: geo.frame(in: .global).maxY
+                    )
+                })
 
                 ForEach(lesson.sections) { section in
                     VStack(alignment: .leading, spacing: 40) {
@@ -221,7 +237,18 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
+        .onPreferenceChange(TitleVisibilityKey.self) { maxY in
+            withAnimation(SamajhMotion.fade) {
+                // 100pt ≈ status bar + nav bar height; show title once header exits that zone
+                showNavBarTitle = maxY < 100
+            }
+        }
     }
+}
+
+private struct TitleVisibilityKey: PreferenceKey {
+    static var defaultValue: CGFloat = .greatestFiniteMagnitude
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) { value = nextValue() }
 }
 
 private struct ToggleChip: View {
