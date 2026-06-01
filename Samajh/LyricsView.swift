@@ -68,6 +68,7 @@ struct LyricsView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var queue: GenerationQueue
+    @EnvironmentObject private var songList: SongListViewModel
 
     private struct ActiveTokenItem: Identifiable {
         let id = "active"
@@ -104,7 +105,9 @@ struct LyricsView: View {
             }
             .alert("Delete this song?", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) {
-                    Task { try? await vm.deleteSong(songId: songId); dismiss() }
+                    songList.remove(songId: songId)
+                    dismiss()
+                    Task { try? await vm.deleteSong(songId: songId) }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {

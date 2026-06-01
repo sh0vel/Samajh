@@ -6,6 +6,12 @@ final class SongListViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var error: String?
 
+    func remove(songId: String) {
+        withAnimation {
+            songs.removeAll { $0.songId == songId }
+        }
+    }
+
     func load() async {
         isLoading = true
         error = nil
