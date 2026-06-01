@@ -498,16 +498,16 @@ private struct TokenSheet: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 20) {
 
                 // ── Header ──────────────────────────────────────────────────
-                HStack(alignment: .firstTextBaseline, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(token.surface)
-                            .font(.custom(SamajhFont.notoDevanagari, size: 38))
+                            .font(.custom(SamajhFont.notoDevanagari, size: 36))
                             .foregroundStyle(Color.samajhTextPrimary)
                         Text(token.roman)
-                            .font(.custom(SamajhFont.interRegular, size: 18))
+                            .font(.custom(SamajhFont.interRegular, size: 17))
                             .foregroundStyle(Color.samajhGold)
                     }
                     Spacer()
@@ -523,18 +523,25 @@ private struct TokenSheet: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.bottom, 12)
 
                 // ── Gloss ────────────────────────────────────────────────────
                 Text(token.gloss)
-                    .font(.custom(SamajhFont.interRegular, size: 20))
+                    .font(.custom(SamajhFont.interMedium, size: 22))
                     .foregroundStyle(Color.samajhTextPrimary)
-                    .padding(.bottom, 28)
 
-                // ── Detail sections ──────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 0) {
-                    tokenSection("Similar words", value: token.spectrum)
-                    tokenSection("In this song", value: token.songContext)
+                // ── Similar words ────────────────────────────────────────────
+                if let spectrum = token.spectrum, !spectrum.isEmpty {
+                    sectionDivider("Similar words")
+                    spectrumRows(spectrum)
+                }
+
+                // ── In this song ─────────────────────────────────────────────
+                if let ctx = token.songContext, !ctx.isEmpty {
+                    sectionDivider("In this song")
+                    Text(ctx)
+                        .font(.custom(SamajhFont.interRegular, size: 17))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(24)
@@ -544,24 +551,53 @@ private struct TokenSheet: View {
     }
 
     @ViewBuilder
-    private func tokenSection(_ label: String, value: String?) -> some View {
-        if let value, !value.isEmpty {
-            VStack(alignment: .leading, spacing: 6) {
-                Divider()
-                    .overlay(Color.samajhSurfaceElevated)
-                    .padding(.vertical, 12)
+    private func sectionDivider(_ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+            Text(label)
+                .font(.custom(SamajhFont.interMedium, size: 13))
+                .foregroundStyle(Color.samajhTextMuted)
+        }
+        .padding(.top, -4)
+    }
 
-                Text(label.uppercased())
-                    .font(.custom(SamajhFont.interMedium, size: 10))
-                    .foregroundStyle(Color.samajhTextMuted)
-                    .kerning(1.4)
-
-                Text(value)
-                    .font(.custom(SamajhFont.interRegular, size: 15))
-                    .foregroundStyle(Color.samajhTextSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+    @ViewBuilder
+    private func spectrumRows(_ spectrum: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(spectrum.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }, id: \.self) { entry in
+                SpectrumEntryRow(entry: entry)
             }
-            .padding(.bottom, 4)
+        }
+    }
+}
+
+private struct SpectrumEntryRow: View {
+    let entry: String
+
+    private var parsed: (word: String, meaning: String)? {
+        guard let eqIdx = entry.firstIndex(of: "=") else { return nil }
+        let word = String(entry[entry.startIndex..<eqIdx]).trimmingCharacters(in: .whitespaces)
+        let meaning = String(entry[entry.index(after: eqIdx)...]).trimmingCharacters(in: .whitespaces)
+        return (word, meaning)
+    }
+
+    var body: some View {
+        if let p = parsed {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(p.word)
+                    .font(.custom(SamajhFont.interMedium, size: 17))
+                    .foregroundStyle(Color.samajhTextPrimary)
+                Text("—")
+                    .font(.custom(SamajhFont.interRegular, size: 17))
+                    .foregroundStyle(Color.samajhTextMuted)
+                Text(p.meaning)
+                    .font(.custom(SamajhFont.interRegular, size: 17))
+                    .foregroundStyle(Color.samajhTextSecondary)
+            }
+        } else {
+            Text(entry)
+                .font(.custom(SamajhFont.interRegular, size: 17))
+                .foregroundStyle(Color.samajhTextSecondary)
         }
     }
 }
