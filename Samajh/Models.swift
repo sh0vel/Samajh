@@ -64,6 +64,7 @@ struct LyricToken: Codable, Identifiable, Hashable {
     let surface: String
     let roman: String
     let gloss: String
+    let definition: String?
     let spectrum: String?
     let songContext: String?
 }

@@ -529,6 +529,15 @@ private struct TokenSheet: View {
                     .font(.custom(SamajhFont.interMedium, size: 22))
                     .foregroundStyle(Color.samajhTextPrimary)
 
+                // ── Definition ───────────────────────────────────────────────
+                if let definition = token.definition, !definition.isEmpty {
+                    sectionDivider("Definition")
+                    Text(definition)
+                        .font(.custom(SamajhFont.interRegular, size: 17))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
                 // ── Similar words ────────────────────────────────────────────
                 if let spectrum = token.spectrum, !spectrum.isEmpty {
                     sectionDivider("Similar words")
