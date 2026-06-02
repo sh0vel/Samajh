@@ -479,14 +479,30 @@ private struct LyricLineRow: View {
         for word in words {
             let normWord = normalize(word)
             if normWord.isEmpty {
-                // pure punctuation — render as-is, no token
                 result.append((word, nil))
             } else if tokenIdx < tokens.count && normalize(tokens[tokenIdx].roman) == normWord {
                 result.append((word, tokens[tokenIdx]))
                 tokenIdx += 1
             } else {
-                // word present in roman but no matching token (mismatch) — still render
-                result.append((word, nil))
+                // Try greedy multi-token match for hyphenated compounds (e.g. dil-e-bechain
+                // tokenized as dil + -e- + bechain). Consume tokens until their concatenated
+                // normalized romans equal normWord.
+                var combined = ""
+                var consumed = 0
+                var tempIdx = tokenIdx
+                while tempIdx < tokens.count && combined.count < normWord.count {
+                    combined += normalize(tokens[tempIdx].roman)
+                    consumed += 1
+                    tempIdx += 1
+                    if combined == normWord {
+                        result.append((word, tokens[tokenIdx]))
+                        tokenIdx += consumed
+                        break
+                    }
+                }
+                if combined != normWord {
+                    result.append((word, nil))
+                }
             }
         }
         return result
