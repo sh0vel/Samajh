@@ -200,6 +200,7 @@ struct LyricsView: View {
                                 showNatural: showNatural,
                                 isFavorite: favorites.isFavorite(lineId: line.lineId, songId: songId),
                                 isRetranslating: vm.retranslatingLineId == line.lineId,
+                                activeToken: activeTokenItem?.token,
                                 onTokenTap: { token in
                                     activeTokenItem = ActiveTokenItem(token: token)
                                 },
@@ -301,6 +302,7 @@ private struct LyricLineRow: View {
     let showNatural: Bool
     let isFavorite: Bool
     let isRetranslating: Bool
+    var activeToken: LyricToken? = nil
     let onTokenTap: (LyricToken) -> Void
     let onEdit: () -> Void
     let onInsertInstrumental: () -> Void
@@ -450,18 +452,20 @@ private struct LyricLineRow: View {
         return WrapHStack(spacing: 4, lineSpacing: 4) {
             ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
                 if let token = pair.token {
+                    let isActive = activeToken.map { $0.roman == token.roman && $0.id == token.id } ?? false
                     Button {
                         onTokenTap(token)
                     } label: {
                         Text(pair.word)
-                            .font(.custom(SamajhFont.interMedium, size: 19))
-                            .foregroundStyle(Color.samajhGold)
+                            .font(.custom(isActive ? SamajhFont.interSemiBold : SamajhFont.interMedium, size: 19))
+                            .foregroundStyle(isActive ? Color.white : Color.samajhGold.opacity(activeToken == nil ? 1 : 0.45))
+                            .underline(isActive, color: Color.samajhGold)
                     }
                     .buttonStyle(.plain)
                 } else {
                     Text(pair.word)
                         .font(.custom(SamajhFont.interRegular, size: 19))
-                        .foregroundStyle(Color.samajhGold)
+                        .foregroundStyle(Color.samajhGold.opacity(activeToken == nil ? 1 : 0.45))
                 }
             }
         }
