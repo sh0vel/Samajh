@@ -477,32 +477,49 @@ private struct LyricLineRow: View {
     ) -> [(word: String, token: LyricToken?)] {
         let words = roman.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
         var result: [(word: String, token: LyricToken?)] = []
-        var tokenIdx = 0
 
         func normalize(_ s: String) -> String {
             s.lowercased().filter { $0.isLetter || $0.isNumber }
         }
 
+        // Strip punctuation-only tokens (roman = "?" / "," / "!" etc.) — they break alignment.
+        // Also flatten multi-word token romans (e.g. "kis tarah") into separate sub-tokens so
+        // each space-split word in the line can match independently.
+        var flatTokens: [(normRoman: String, token: LyricToken)] = []
+        for token in tokens {
+            let normFull = normalize(token.roman)
+            guard !normFull.isEmpty else { continue }
+            let parts = token.roman.split(separator: " ", omittingEmptySubsequences: true).map(String.init)
+            if parts.count > 1 {
+                for part in parts {
+                    let n = normalize(part)
+                    if !n.isEmpty { flatTokens.append((n, token)) }
+                }
+            } else {
+                flatTokens.append((normFull, token))
+            }
+        }
+
+        var tokenIdx = 0
+
         for word in words {
             let normWord = normalize(word)
             if normWord.isEmpty {
                 result.append((word, nil))
-            } else if tokenIdx < tokens.count && normalize(tokens[tokenIdx].roman) == normWord {
-                result.append((word, tokens[tokenIdx]))
+            } else if tokenIdx < flatTokens.count && flatTokens[tokenIdx].normRoman == normWord {
+                result.append((word, flatTokens[tokenIdx].token))
                 tokenIdx += 1
             } else {
-                // Try greedy multi-token match for hyphenated compounds (e.g. dil-e-bechain
-                // tokenized as dil + -e- + bechain). Consume tokens until their concatenated
-                // normalized romans equal normWord.
+                // Greedy multi-token match for hyphenated compounds (e.g. dil-e-bechain).
                 var combined = ""
                 var consumed = 0
                 var tempIdx = tokenIdx
-                while tempIdx < tokens.count && combined.count < normWord.count {
-                    combined += normalize(tokens[tempIdx].roman)
+                while tempIdx < flatTokens.count && combined.count < normWord.count {
+                    combined += flatTokens[tempIdx].normRoman
                     consumed += 1
                     tempIdx += 1
                     if combined == normWord {
-                        result.append((word, tokens[tokenIdx]))
+                        result.append((word, flatTokens[tokenIdx].token))
                         tokenIdx += consumed
                         break
                     }
