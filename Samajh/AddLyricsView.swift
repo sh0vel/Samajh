@@ -146,9 +146,11 @@ struct AddLyricsView: View {
                             .font(.caption2)
                             .foregroundStyle(Color.samajhGold)
                     }
+                    .frame(maxWidth: .infinity)
                     .padding(14)
                     .background(Color.samajhSurfaceCard)
                     .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+                    .contentShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
                 }
                 .buttonStyle(.plain)
             }
@@ -285,9 +287,11 @@ struct AddLyricsView: View {
                     .font(.caption)
                     .foregroundStyle(Color.samajhTextMuted)
             }
+            .frame(maxWidth: .infinity)
             .padding(16)
             .background(Color.samajhSurfaceCard)
             .clipShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
+            .contentShape(RoundedRectangle(cornerRadius: SamajhRadius.small))
         }
         .buttonStyle(.plain)
     }
@@ -621,7 +625,9 @@ struct AddLyricsView: View {
                 }
                 Spacer()
             }
+            .frame(maxWidth: .infinity)
             .padding(.vertical, 12)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
@@ -639,7 +645,9 @@ struct AddLyricsView: View {
                 .foregroundStyle(Color.samajhTextPrimary)
                 .tint(Color.samajhGold)
         }
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
+        .contentShape(Rectangle())
     }
 
     private func previewLines(_ text: String) -> String {

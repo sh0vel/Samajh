@@ -15,6 +15,21 @@ final class GenerationQueue: ObservableObject {
     var isGenerating: Bool { !pendingJobs.isEmpty }
 
     private static let storageKey = "pendingGenerationJobs"
+    private var errorClearTask: Task<Void, Never>?
+
+    func dismissError() {
+        errorMessage = nil
+        errorClearTask?.cancel()
+    }
+
+    private func setError(_ message: String) {
+        errorMessage = message
+        errorClearTask?.cancel()
+        errorClearTask = Task {
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            if !Task.isCancelled { errorMessage = nil }
+        }
+    }
 
     init() {
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
@@ -47,7 +62,7 @@ final class GenerationQueue: ObservableObject {
                 persist()
                 await poll(jobId: queued.jobId, title: titleHint, imageUrl: imageUrl, onComplete: onComplete)
             } catch {
-                errorMessage = error.localizedDescription
+                setError(error.localizedDescription)
             }
         }
     }
@@ -62,7 +77,7 @@ final class GenerationQueue: ObservableObject {
                 persist()
                 await poll(jobId: queued.jobId, title: title, imageUrl: imageUrl, onComplete: { _ in })
             } catch {
-                errorMessage = error.localizedDescription
+                setError(error.localizedDescription)
             }
         }
     }
@@ -84,7 +99,7 @@ final class GenerationQueue: ObservableObject {
                     if let songId = status.songId { onComplete(songId) }
                     return
                 case "error":
-                    errorMessage = status.errorMessage ?? "\(title): generation failed"
+                    setError(status.errorMessage ?? "\(title): generation failed")
                     return
                 default:
                     break

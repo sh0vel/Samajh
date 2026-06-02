@@ -482,14 +482,30 @@ private struct LyricLineRow: View {
         for word in words {
             let normWord = normalize(word)
             if normWord.isEmpty {
-                // pure punctuation — render as-is, no token
                 result.append((word, nil))
             } else if tokenIdx < tokens.count && normalize(tokens[tokenIdx].roman) == normWord {
                 result.append((word, tokens[tokenIdx]))
                 tokenIdx += 1
             } else {
-                // word present in roman but no matching token (mismatch) — still render
-                result.append((word, nil))
+                // Try greedy multi-token match for hyphenated compounds (e.g. dil-e-bechain
+                // tokenized as dil + -e- + bechain). Consume tokens until their concatenated
+                // normalized romans equal normWord.
+                var combined = ""
+                var consumed = 0
+                var tempIdx = tokenIdx
+                while tempIdx < tokens.count && combined.count < normWord.count {
+                    combined += normalize(tokens[tempIdx].roman)
+                    consumed += 1
+                    tempIdx += 1
+                    if combined == normWord {
+                        result.append((word, tokens[tokenIdx]))
+                        tokenIdx += consumed
+                        break
+                    }
+                }
+                if combined != normWord {
+                    result.append((word, nil))
+                }
             }
         }
         return result
@@ -500,31 +516,117 @@ private struct TokenSheet: View {
     let token: LyricToken
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(token.surface)
-                    .font(.custom(SamajhFont.notoDevanagari, size: 36))
-                    .foregroundStyle(Color.samajhTextPrimary)
-                Text(token.roman)
-                    .font(.custom(SamajhFont.interRegular, size: 20))
-                    .foregroundStyle(Color.samajhTextRoman)
-                Spacer()
-                Button {
-                    TTSPlayer.shared.speak(token.surface)
-                } label: {
-                    Image(systemName: "speaker.wave.2")
-                        .font(.body)
-                        .foregroundStyle(Color.samajhTextMuted)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+
+                // ── Header ──────────────────────────────────────────────────
+                HStack(alignment: .firstTextBaseline) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(token.surface)
+                            .font(.custom(SamajhFont.notoDevanagari, size: 36))
+                            .foregroundStyle(Color.samajhTextPrimary)
+                        Text(token.roman)
+                            .font(.custom(SamajhFont.interRegular, size: 17))
+                            .foregroundStyle(Color.samajhGold)
+                    }
+                    Spacer()
+                    Button {
+                        TTSPlayer.shared.speak(token.surface)
+                    } label: {
+                        Image(systemName: "speaker.wave.2")
+                            .font(.system(size: 18))
+                            .foregroundStyle(Color.samajhTextMuted)
+                            .padding(10)
+                            .background(Color.samajhSurfaceElevated)
+                            .clipShape(Circle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+
+                // ── Gloss ────────────────────────────────────────────────────
+                Text(token.gloss)
+                    .font(.custom(SamajhFont.interMedium, size: 22))
+                    .foregroundStyle(Color.samajhTextPrimary)
+
+                // ── Definition ───────────────────────────────────────────────
+                if let definition = token.definition, !definition.isEmpty {
+                    sectionDivider("Definition")
+                    Text(definition)
+                        .font(.custom(SamajhFont.interRegular, size: 17))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                // ── Similar words ────────────────────────────────────────────
+                if let spectrum = token.spectrum, !spectrum.isEmpty {
+                    sectionDivider("Similar words")
+                    spectrumRows(spectrum)
+                }
+
+                // ── In this song ─────────────────────────────────────────────
+                if let ctx = token.songContext, !ctx.isEmpty {
+                    sectionDivider("In this song")
+                    Text(ctx)
+                        .font(.custom(SamajhFont.interRegular, size: 17))
+                        .foregroundStyle(Color.samajhTextSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Text(token.gloss)
-                .font(.custom(SamajhFont.interRegular, size: 18))
-                .foregroundStyle(Color.samajhTextSecondary)
-            Spacer()
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(24)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .scrollBounceBehavior(.basedOnSize)
+    }
+
+    @ViewBuilder
+    private func sectionDivider(_ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+            Text(label)
+                .font(.custom(SamajhFont.interMedium, size: 13))
+                .foregroundStyle(Color.samajhTextMuted)
+        }
+        .padding(.top, -4)
+    }
+
+    @ViewBuilder
+    private func spectrumRows(_ spectrum: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(spectrum.split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces) }, id: \.self) { entry in
+                SpectrumEntryRow(entry: entry)
+            }
+        }
+    }
+}
+
+private struct SpectrumEntryRow: View {
+    let entry: String
+
+    private var parsed: (word: String, meaning: String)? {
+        guard let eqIdx = entry.firstIndex(of: "=") else { return nil }
+        let word = String(entry[entry.startIndex..<eqIdx]).trimmingCharacters(in: .whitespaces)
+        let meaning = String(entry[entry.index(after: eqIdx)...]).trimmingCharacters(in: .whitespaces)
+        return (word, meaning)
+    }
+
+    var body: some View {
+        if let p = parsed {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(p.word)
+                    .font(.custom(SamajhFont.interMedium, size: 17))
+                    .foregroundStyle(Color.samajhTextPrimary)
+                Text("—")
+                    .font(.custom(SamajhFont.interRegular, size: 17))
+                    .foregroundStyle(Color.samajhTextMuted)
+                Text(p.meaning)
+                    .font(.custom(SamajhFont.interRegular, size: 17))
+                    .foregroundStyle(Color.samajhTextSecondary)
+            }
+        } else {
+            Text(entry)
+                .font(.custom(SamajhFont.interRegular, size: 17))
+                .foregroundStyle(Color.samajhTextSecondary)
+        }
     }
 }
 

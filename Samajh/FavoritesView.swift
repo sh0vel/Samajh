@@ -59,7 +59,6 @@ struct FavoritesView: View {
 
 private struct FavoriteLineLabel: View {
     let line: FavoriteLine
-    @GestureState private var isPressed = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -72,11 +71,5 @@ private struct FavoriteLineLabel: View {
             }
         }
         .padding(.vertical, 2)
-        .scaleEffect(isPressed ? 0.97 : 1.0, anchor: .leading)
-        .animation(.easeOut(duration: 0.12), value: isPressed)
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, state, _ in state = true }
-        )
     }
 }
