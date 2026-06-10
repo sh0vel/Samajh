@@ -21,7 +21,7 @@ enum APIError: LocalizedError {
 actor APIClient {
     static let shared = APIClient()
 
-    private let baseURL = URL(string: "https://humdard-lyric-api.sh0vel.workers.dev")!
+    private let baseURL = URL(string: "https://humdard-lyric-api.sh0vel.workers.dev/api/v1")!
     private let session: URLSession
     private let decoder: JSONDecoder
     private let encoder: JSONEncoder
@@ -38,13 +38,13 @@ actor APIClient {
     }
 
     func listSongs() async throws -> [SongMetadata] {
-        let url = baseURL.appendingPathComponent("/api/songs")
+        let url = baseURL.appendingPathComponent("/songs")
         let response: SongsListResponse = try await request(url: url, method: "GET", body: Optional<String>.none)
         return response.songs
     }
 
     func getSong(songId: String, includeTokens: Bool = true) async throws -> LyricLesson {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/songs/\(songId)"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(url: baseURL.appendingPathComponent("/songs/\(songId)"), resolvingAgainstBaseURL: false)!
         if !includeTokens {
             components.queryItems = [URLQueryItem(name: "tokens", value: "false")]
         }
@@ -53,7 +53,7 @@ actor APIClient {
     }
 
     func lookupLyrics(title: String, artist: String?) async throws -> [LookupCandidate] {
-        let url = baseURL.appendingPathComponent("/api/lookup")
+        let url = baseURL.appendingPathComponent("/lookup")
         let payload = LookupRequest(
             title: title,
             artist: artist?.isEmpty == true ? nil : artist
@@ -63,7 +63,7 @@ actor APIClient {
     }
 
     func jsonifyLyrics(rawLyrics: String, titleHint: String?, artistHint: String?, imageUrl: String? = nil) async throws -> JsonifyQueuedResponse {
-        let url = baseURL.appendingPathComponent("/api/jsonify")
+        let url = baseURL.appendingPathComponent("/jsonify")
         let payload = JsonifyRequest(
             rawLyrics: rawLyrics,
             titleHint: titleHint?.isEmpty == true ? nil : titleHint,
@@ -74,39 +74,39 @@ actor APIClient {
     }
 
     func getJobStatus(jobId: String) async throws -> JobStatusResponse {
-        let url = baseURL.appendingPathComponent("/api/jobs/\(jobId)")
+        let url = baseURL.appendingPathComponent("/jobs/\(jobId)")
         return try await request(url: url, method: "GET", body: Optional<String>.none)
     }
 
     func insertInstrumental(songId: String, beforeLineId: String) async throws {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(beforeLineId)/instrumental")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)/lines/\(beforeLineId)/instrumental")
         let _: EmptyResponse = try await request(url: url, method: "POST", body: Optional<String>.none)
     }
 
     func deleteLine(songId: String, lineId: String) async throws {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)/lines/\(lineId)")
         let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
     }
 
     func updateLine(songId: String, lineId: String, fields: LineUpdateRequest) async throws {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)/lines/\(lineId)")
         let _: EmptyResponse = try await request(url: url, method: "PATCH", body: fields)
     }
 
     func retranslateLine(songId: String, lineId: String, feedback: String?) async throws -> LineTranslationResult {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/lines/\(lineId)/retranslate")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)/lines/\(lineId)/retranslate")
         let payload = FeedbackRequest(feedback: feedback)
         return try await request(url: url, method: "POST", body: payload)
     }
 
     func retranslateSong(songId: String, feedback: String?) async throws -> JsonifyQueuedResponse {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)/retranslate")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)/retranslate")
         let payload = FeedbackRequest(feedback: feedback)
         return try await request(url: url, method: "POST", body: payload)
     }
 
     func spotifySearch(query: String) async throws -> [SpotifyTrack] {
-        var components = URLComponents(url: baseURL.appendingPathComponent("/api/spotify/search"), resolvingAgainstBaseURL: false)!
+        var components = URLComponents(url: baseURL.appendingPathComponent("/spotify/search"), resolvingAgainstBaseURL: false)!
         components.queryItems = [URLQueryItem(name: "q", value: query)]
         guard let url = components.url else { throw APIError.invalidURL }
         struct Resp: Decodable { let tracks: [SpotifyTrack] }
@@ -115,7 +115,7 @@ actor APIClient {
     }
 
     func deleteSong(songId: String) async throws {
-        let url = baseURL.appendingPathComponent("/api/songs/\(songId)")
+        let url = baseURL.appendingPathComponent("/songs/\(songId)")
         let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
     }
 
@@ -125,6 +125,9 @@ actor APIClient {
         if let body = body {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try encoder.encode(body)
+        }
+        if let token = await AuthManager.shared.sessionToken {
+            req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
         let data: Data

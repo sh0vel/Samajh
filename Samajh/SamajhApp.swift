@@ -7,11 +7,13 @@ struct SamajhApp: App {
     @StateObject private var spotify = SpotifyManager()
     @StateObject private var songListVM = SongListViewModel()
     @StateObject private var flightCoordinator = FavoriteFlightCoordinator()
+    @StateObject private var auth: AuthManager
     @State private var selectedTab = 0
     @State private var showSplash = true
     @State private var splashAnimationDone = false
 
     init() {
+        _auth = StateObject(wrappedValue: AuthManager.shared)
         Task.detached(priority: .background) { SamajhFonts.register() }
     }
 
@@ -60,7 +62,7 @@ struct SamajhApp: App {
             }
             .overlay {
                 if showSplash {
-                    SplashView { splashAnimationDone = true }
+                    SplashView(authManager: auth) { splashAnimationDone = true }
                         .ignoresSafeArea()
                 }
             }

@@ -1,6 +1,8 @@
 import SwiftUI
+import AuthenticationServices
 
 struct SplashView: View {
+    let authManager: AuthManager
     let onComplete: () -> Void
 
     @State private var glowOpacity: Double = 0
@@ -10,15 +12,18 @@ struct SplashView: View {
     @State private var spread: CGFloat = 1
     @State private var samajhOpacity: Double = 0
     @State private var samajhScale: CGFloat = 0.6
+    @State private var showSignIn: Bool = false
+    @State private var animationCompleted: Bool = false
 
     private let spreadOffset: CGFloat = 140
+    private let gold = Color(red: 0.84, green: 0.63, blue: 0.37)
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
 
             RadialGradient(
-                colors: [Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.08), .clear],
+                colors: [gold.opacity(0.08), .clear],
                 center: .center,
                 startRadius: 0,
                 endRadius: 300
@@ -27,7 +32,7 @@ struct SplashView: View {
             .opacity(glowOpacity)
 
             RadialGradient(
-                colors: [Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.28), .clear],
+                colors: [gold.opacity(0.28), .clear],
                 center: .center,
                 startRadius: 0,
                 endRadius: 420
@@ -41,7 +46,7 @@ struct SplashView: View {
                 ZStack(alignment: .center) {
                     Text("समझ")
                         .font(.custom(SamajhFont.notoDevanagari, size: 42))
-                        .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
+                        .foregroundStyle(gold.opacity(0.72))
                         .offset(x: -spreadOffset * spread, y: 6)
                         .scaleEffect(0.1 + 0.9 * spread)
                         .opacity(Double(spread) * scriptsOpacity)
@@ -49,7 +54,7 @@ struct SplashView: View {
 
                     Text("سمجھ")
                         .font(.custom(SamajhFont.notoNastaliq, size: 44))
-                        .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
+                        .foregroundStyle(gold.opacity(0.72))
                         .environment(\.layoutDirection, .rightToLeft)
                         .offset(y: -8)
                         .scaleEffect(0.1 + 0.9 * spread)
@@ -58,7 +63,7 @@ struct SplashView: View {
 
                     Text("সমঝ")
                         .font(.custom(SamajhFont.notoBengali, size: 42))
-                        .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37).opacity(0.72))
+                        .foregroundStyle(gold.opacity(0.72))
                         .offset(x: spreadOffset * spread, y: 3)
                         .scaleEffect(0.1 + 0.9 * spread)
                         .opacity(Double(spread) * scriptsOpacity)
@@ -66,20 +71,75 @@ struct SplashView: View {
 
                     Text("samajh")
                         .font(.custom(SamajhFont.cormorantMedium, size: 62))
-                        .foregroundStyle(Color(red: 0.84, green: 0.63, blue: 0.37))
+                        .foregroundStyle(gold)
                         .opacity(samajhOpacity)
                         .scaleEffect(samajhScale)
                 }
                 .frame(maxWidth: .infinity, minHeight: 90)
 
+                // Sign-in buttons — fade in after animation if not signed in
+                if showSignIn {
+                    signInSection
+                        .padding(.top, 52)
+                        .transition(.opacity)
+                }
+
                 Spacer()
 
                 PulsingDots()
                     .padding(.bottom, 110)
-                    .opacity(glowOpacity)
+                    .opacity(showSignIn ? 0 : glowOpacity)
             }
         }
         .onAppear { beginSequence() }
+        .onChange(of: authManager.isSignedIn) { _, isSignedIn in
+            guard animationCompleted, isSignedIn else { return }
+            onComplete()
+        }
+    }
+
+    @ViewBuilder
+    private var signInSection: some View {
+        VStack(spacing: 16) {
+            SignInWithAppleButton(.signIn) { request in
+                request.requestedScopes = [.email, .fullName]
+            } onCompletion: { result in
+                Task { await authManager.handleAppleSignIn(result: result) }
+            }
+            .signInWithAppleButtonStyle(.white)
+            .frame(width: 280, height: 50)
+            .clipShape(Capsule())
+
+            Button {
+                authManager.signInWithGoogle()
+            } label: {
+                HStack(spacing: 10) {
+                    Text("G")
+                        .font(.system(size: 18, weight: .bold))
+                    Text("Continue with Google")
+                        .font(.system(size: 17, weight: .medium))
+                }
+                .frame(width: 280, height: 50)
+                .background(gold)
+                .foregroundStyle(.black)
+                .clipShape(Capsule())
+            }
+
+            if let error = authManager.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
+                    .padding(.top, 4)
+            }
+
+            if authManager.isLoading {
+                ProgressView()
+                    .tint(gold)
+                    .padding(.top, 4)
+            }
+        }
     }
 
     private func beginSequence() {
@@ -101,7 +161,12 @@ struct SplashView: View {
                     withAnimation(.easeInOut(duration: 1.0)) { glowPulse = 0 }
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
-                    onComplete()
+                    animationCompleted = true
+                    if authManager.isSignedIn {
+                        onComplete()
+                    } else {
+                        withAnimation(.easeIn(duration: 0.5)) { showSignIn = true }
+                    }
                 }
             }
         }
