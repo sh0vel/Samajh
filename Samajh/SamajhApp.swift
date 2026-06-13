@@ -10,7 +10,6 @@ struct SamajhApp: App {
     @StateObject private var auth: AuthManager
     @State private var selectedTab = 0
     @State private var showSplash = true
-    @State private var splashAnimationDone = false
 
     init() {
         _auth = StateObject(wrappedValue: AuthManager.shared)
@@ -66,15 +65,11 @@ struct SamajhApp: App {
             }
             .overlay {
                 if showSplash {
-                    SplashView(authManager: auth) { splashAnimationDone = true }
-                        .ignoresSafeArea()
+                    SplashView(authManager: auth, isReturningUser: auth.isSignedIn) {
+                        withAnimation { showSplash = false }
+                    }
+                    .ignoresSafeArea()
                 }
-            }
-            .onChange(of: splashAnimationDone) { _, done in
-                if done && !songListVM.isLoading { withAnimation { showSplash = false } }
-            }
-            .onChange(of: songListVM.isLoading) { _, loading in
-                if !loading && splashAnimationDone { withAnimation { showSplash = false } }
             }
         }
     }

@@ -59,6 +59,14 @@ struct SongListView: View {
                 }
                 .padding()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if vm.isLoading && vm.songs.isEmpty {
+                List {
+                    ForEach(0..<6, id: \.self) { _ in
+                        SongRowSkeleton()
+                            .listRowBackground(Color.clear)
+                    }
+                }
+                .listStyle(.plain)
             } else if vm.songs.isEmpty && !queue.isGenerating {
                 VStack(spacing: 20) {
                     Text("samajh")
@@ -208,9 +216,13 @@ struct SongListView: View {
 struct ProfileSheet: View {
     @ObservedObject var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
-    @State private var firstName: String = Clerk.shared.user?.firstName ?? ""
-    @State private var lastName: String = Clerk.shared.user?.lastName ?? ""
-    @State private var isSaving = false
+
+    private var displayName: String? {
+        let first = Clerk.shared.user?.firstName ?? ""
+        let last = Clerk.shared.user?.lastName ?? ""
+        let full = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
+        return full.isEmpty ? nil : full
+    }
 
     private var email: String? {
         Clerk.shared.user?.emailAddresses.first?.emailAddress
@@ -243,9 +255,11 @@ struct ProfileSheet: View {
                     .padding(.vertical, 8)
                 }
 
-                Section("Name") {
-                    TextField("First name", text: $firstName)
-                    TextField("Last name", text: $lastName)
+                if let name = displayName {
+                    Section("Name") {
+                        Text(name)
+                            .foregroundStyle(.primary)
+                    }
                 }
 
                 if let email = email {
@@ -267,22 +281,39 @@ struct ProfileSheet: View {
             .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Save") {
-                        Task {
-                            isSaving = true
-                            try? await Clerk.shared.user?.update(.init(firstName: firstName, lastName: lastName))
-                            isSaving = false
-                            dismiss()
-                        }
-                    }
-                    .disabled(isSaving)
+                    Button("Done") { dismiss() }
                 }
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+private struct SongRowSkeleton: View {
+    @State private var shimmer = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.samajhTextMuted.opacity(0.18))
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 8) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.samajhTextMuted.opacity(0.18))
+                    .frame(width: 160, height: 14)
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.samajhTextMuted.opacity(0.12))
+                    .frame(width: 100, height: 11)
+            }
+            Spacer()
+        }
+        .padding(.vertical, 6)
+        .opacity(shimmer ? 0.5 : 1.0)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+                shimmer = true
+            }
+        }
     }
 }

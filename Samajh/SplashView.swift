@@ -3,6 +3,7 @@ import AuthenticationServices
 
 struct SplashView: View {
     let authManager: AuthManager
+    let isReturningUser: Bool
     let onComplete: () -> Void
 
     @State private var glowOpacity: Double = 0
@@ -44,30 +45,32 @@ struct SplashView: View {
                 Spacer()
 
                 ZStack(alignment: .center) {
-                    Text("समझ")
-                        .font(.custom(SamajhFont.notoDevanagari, size: 42))
-                        .foregroundStyle(gold.opacity(0.72))
-                        .offset(x: -spreadOffset * spread, y: 6)
-                        .scaleEffect(0.1 + 0.9 * spread)
-                        .opacity(Double(spread) * scriptsOpacity)
-                        .blur(radius: scriptBlur)
+                    if !isReturningUser {
+                        Text("समझ")
+                            .font(.custom(SamajhFont.notoDevanagari, size: 42))
+                            .foregroundStyle(gold.opacity(0.72))
+                            .offset(x: -spreadOffset * spread, y: 6)
+                            .scaleEffect(0.1 + 0.9 * spread)
+                            .opacity(Double(spread) * scriptsOpacity)
+                            .blur(radius: scriptBlur)
 
-                    Text("سمجھ")
-                        .font(.custom(SamajhFont.notoNastaliq, size: 44))
-                        .foregroundStyle(gold.opacity(0.72))
-                        .environment(\.layoutDirection, .rightToLeft)
-                        .offset(y: -8)
-                        .scaleEffect(0.1 + 0.9 * spread)
-                        .opacity(Double(spread) * scriptsOpacity)
-                        .blur(radius: scriptBlur)
+                        Text("سمجھ")
+                            .font(.custom(SamajhFont.notoNastaliq, size: 44))
+                            .foregroundStyle(gold.opacity(0.72))
+                            .environment(\.layoutDirection, .rightToLeft)
+                            .offset(y: -8)
+                            .scaleEffect(0.1 + 0.9 * spread)
+                            .opacity(Double(spread) * scriptsOpacity)
+                            .blur(radius: scriptBlur)
 
-                    Text("সমঝ")
-                        .font(.custom(SamajhFont.notoBengali, size: 42))
-                        .foregroundStyle(gold.opacity(0.72))
-                        .offset(x: spreadOffset * spread, y: 3)
-                        .scaleEffect(0.1 + 0.9 * spread)
-                        .opacity(Double(spread) * scriptsOpacity)
-                        .blur(radius: scriptBlur)
+                        Text("সমঝ")
+                            .font(.custom(SamajhFont.notoBengali, size: 42))
+                            .foregroundStyle(gold.opacity(0.72))
+                            .offset(x: spreadOffset * spread, y: 3)
+                            .scaleEffect(0.1 + 0.9 * spread)
+                            .opacity(Double(spread) * scriptsOpacity)
+                            .blur(radius: scriptBlur)
+                    }
 
                     Text("samajh")
                         .font(.custom(SamajhFont.cormorantMedium, size: 62))
@@ -77,7 +80,6 @@ struct SplashView: View {
                 }
                 .frame(maxWidth: .infinity, minHeight: 90)
 
-                // Sign-in buttons — fade in after animation if not signed in
                 if showSignIn {
                     signInSection
                         .padding(.top, 52)
@@ -86,12 +88,14 @@ struct SplashView: View {
 
                 Spacer()
 
-                PulsingDots()
-                    .padding(.bottom, 110)
-                    .opacity(showSignIn ? 0 : glowOpacity)
+                if !isReturningUser {
+                    PulsingDots()
+                        .padding(.bottom, 110)
+                        .opacity(showSignIn ? 0 : glowOpacity)
+                }
             }
         }
-        .onAppear { beginSequence() }
+        .onAppear { isReturningUser ? beginShortSequence() : beginFullSequence() }
         .onChange(of: authManager.isSignedIn) { _, isSignedIn in
             guard animationCompleted, isSignedIn else { return }
             onComplete()
@@ -143,13 +147,26 @@ struct SplashView: View {
         }
     }
 
-    private func beginSequence() {
+    // Returning signed-in users: quick logo flash then go
+    private func beginShortSequence() {
+        withAnimation(.easeOut(duration: 0.4)) {
+            samajhOpacity = 1
+            samajhScale = 1.0
+            glowOpacity = 1
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.75) {
+            animationCompleted = true
+            onComplete()
+        }
+    }
+
+    // New/signed-out users: full cinematic sequence
+    private func beginFullSequence() {
         withAnimation(.easeOut(duration: 0.65)) {
             glowOpacity = 1
             scriptsOpacity = 1
             scriptBlur = 0
         }
-
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
             withAnimation(.easeInOut(duration: 0.5)) { spread = 0 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
@@ -163,11 +180,7 @@ struct SplashView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     animationCompleted = true
-                    if authManager.isSignedIn {
-                        onComplete()
-                    } else {
-                        withAnimation(.easeIn(duration: 0.5)) { showSignIn = true }
-                    }
+                    withAnimation(.easeIn(duration: 0.5)) { showSignIn = true }
                 }
             }
         }
