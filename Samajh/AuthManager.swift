@@ -87,4 +87,14 @@ final class AuthManager: ObservableObject {
             sessionToken = nil
         }
     }
+
+    func deleteAccount() async {
+        do {
+            try await Clerk.shared.user?.delete()
+            isSignedIn = false
+            sessionToken = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
 }

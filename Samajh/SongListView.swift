@@ -152,8 +152,13 @@ struct SongListView: View {
                 } // ScrollViewReader
             }
         }
-        .navigationTitle("Samajh")
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) {
+                Text("samajh")
+                    .font(.custom(SamajhFont.cormorantMedium, size: 26))
+                    .foregroundStyle(Color.samajhGold)
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { showingProfile = true } label: {
                     UserAvatarBadge()
@@ -226,12 +231,13 @@ private struct UserAvatarBadge: View {
 struct ProfileSheet: View {
     @ObservedObject var auth: AuthManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showDeleteConfirmation = false
+    @State private var isDeleting = false
 
     private var displayName: String? {
-        let first = Clerk.shared.user?.firstName ?? ""
-        let last = Clerk.shared.user?.lastName ?? ""
-        let full = [first, last].filter { !$0.isEmpty }.joined(separator: " ")
-        return full.isEmpty ? nil : full
+        let parts = [Clerk.shared.user?.firstName, Clerk.shared.user?.lastName]
+            .compactMap { $0 }.filter { !$0.isEmpty }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
     }
 
     private var email: String? {
@@ -240,63 +246,86 @@ struct ProfileSheet: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    HStack {
-                        Spacer()
-                        if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
-                            AsyncImage(url: url) { img in
-                                img.resizable().scaledToFill()
-                            } placeholder: {
-                                Image(systemName: "person.circle.fill")
-                                    .font(.system(size: 64))
-                                    .foregroundStyle(Color.samajhTextSecondary)
-                            }
-                            .frame(width: 72, height: 72)
-                            .clipShape(Circle())
-                        } else {
-                            Image(systemName: "person.circle.fill")
-                                .font(.system(size: 64))
-                                .foregroundStyle(Color.samajhTextSecondary)
+            ZStack {
+                Color.samajhBackground.ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let name = displayName {
+                            Text(name)
+                                .font(.system(size: 26, weight: .semibold))
+                                .foregroundStyle(Color.samajhTextPrimary)
                         }
-                        Spacer()
+                        if let email = email {
+                            Text(email)
+                                .font(.custom(SamajhFont.interRegular, size: 15))
+                                .foregroundStyle(Color.samajhTextMuted)
+                        }
                     }
-                    .listRowBackground(Color.clear)
-                    .padding(.vertical, 8)
-                }
+                    .padding(.horizontal, 28)
+                    .padding(.top, 36)
 
-                if let name = displayName {
-                    Section("Name") {
-                        Text(name)
-                            .foregroundStyle(.primary)
-                    }
-                }
+                    Spacer()
 
-                if let email = email {
-                    Section("Email") {
-                        Text(email)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                    VStack(spacing: 0) {
+                        Divider().overlay(Color.samajhSurfaceElevated)
 
-                Section {
-                    Button(role: .destructive) {
-                        dismiss()
-                        auth.signOut()
-                    } label: {
-                        Text("Sign Out")
+                        Button {
+                            dismiss()
+                            auth.signOut()
+                        } label: {
+                            Text("Sign Out")
+                                .font(.custom(SamajhFont.interMedium, size: 16))
+                                .foregroundStyle(Color.samajhGold)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 28)
+                                .padding(.vertical, 18)
+                        }
+
+                        Divider().overlay(Color.samajhSurfaceElevated)
+
+                        Button {
+                            showDeleteConfirmation = true
+                        } label: {
+                            Text("Delete Account")
+                                .font(.custom(SamajhFont.interMedium, size: 16))
+                                .foregroundStyle(Color(red: 0.788, green: 0.420, blue: 0.420))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.horizontal, 28)
+                                .padding(.vertical, 18)
+                        }
+                        .disabled(isDeleting)
                     }
+                    .padding(.bottom, 32)
                 }
             }
-            .navigationTitle("Account")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
+                        .font(.custom(SamajhFont.interMedium, size: 16))
+                        .foregroundStyle(Color.samajhGold)
                 }
+            }
+            .confirmationDialog(
+                "Delete your account?",
+                isPresented: $showDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Delete Account", role: .destructive) {
+                    Task {
+                        isDeleting = true
+                        await auth.deleteAccount()
+                        dismiss()
+                    }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This permanently deletes your account and all your songs. This cannot be undone.")
             }
         }
         .presentationDetents([.medium])
+        .presentationBackground(Color.samajhBackground)
     }
 }
 
