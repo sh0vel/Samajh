@@ -154,7 +154,7 @@ struct SongListView: View {
         }
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .principal) {
+            ToolbarItem(placement: .navigationBarLeading) {
                 Text("samajh")
                     .font(.custom(SamajhFont.cormorantMedium, size: 26))
                     .foregroundStyle(Color.samajhGold)
