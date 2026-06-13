@@ -61,6 +61,7 @@ struct SongListView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if vm.isLoading && vm.songs.isEmpty {
                 List {
+                    SongListHeader(showingProfile: $showingProfile)
                     ForEach(0..<6, id: \.self) { _ in
                         SongRowSkeleton()
                             .listRowBackground(Color.clear)
@@ -84,6 +85,8 @@ struct SongListView: View {
             } else {
                 ScrollViewReader { proxy in
                 List {
+                    SongListHeader(showingProfile: $showingProfile)
+
                     ForEach(queue.pendingJobs) { job in
                         HStack(spacing: 12) {
                             AlbumThumbnail(url: job.imageUrl, size: 44)
@@ -153,15 +156,8 @@ struct SongListView: View {
                 } // ScrollViewReader
             }
         }
-        .navigationTitle("Samajh")
-        .overlay(alignment: .topTrailing) {
-            Button { showingProfile = true } label: {
-                UserAvatarBadge()
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 12)
-            .padding(.trailing, 20)
-        }
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingProfile) {
             ProfileSheet(auth: auth)
         }
@@ -200,6 +196,26 @@ struct SongListView: View {
         withAnimation(.easeOut(duration: 1.1)) { flashOpacity = 0 }
         try? await Task.sleep(nanoseconds: 1_200_000_000)
         flashedSongId = nil
+    }
+}
+
+private struct SongListHeader: View {
+    @Binding var showingProfile: Bool
+
+    var body: some View {
+        HStack(alignment: .center) {
+            Text("Samajh")
+                .font(.system(size: 34, weight: .bold))
+                .foregroundStyle(Color.samajhTextPrimary)
+            Spacer()
+            Button { showingProfile = true } label: {
+                UserAvatarBadge()
+            }
+            .buttonStyle(.plain)
+        }
+        .listRowSeparator(.hidden)
+        .listRowBackground(Color.clear)
+        .listRowInsets(EdgeInsets(top: 16, leading: 20, bottom: 8, trailing: 20))
     }
 }
 
