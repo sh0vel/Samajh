@@ -153,14 +153,14 @@ struct SongListView: View {
                 } // ScrollViewReader
             }
         }
-        .navigationTitle("samajh")
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showingProfile = true } label: {
-                    UserAvatarBadge()
-                }
-                .buttonStyle(.plain)
+        .navigationTitle("Samajh")
+        .overlay(alignment: .topTrailing) {
+            Button { showingProfile = true } label: {
+                UserAvatarBadge()
             }
+            .buttonStyle(.plain)
+            .padding(.top, 12)
+            .padding(.trailing, 20)
         }
         .sheet(isPresented: $showingProfile) {
             ProfileSheet(auth: auth)
