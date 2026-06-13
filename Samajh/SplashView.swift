@@ -180,7 +180,11 @@ struct SplashView: View {
                 }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
                     animationCompleted = true
-                    withAnimation(.easeIn(duration: 0.5)) { showSignIn = true }
+                    if authManager.isSignedIn {
+                        onComplete()
+                    } else {
+                        withAnimation(.easeIn(duration: 0.5)) { showSignIn = true }
+                    }
                 }
             }
         }
