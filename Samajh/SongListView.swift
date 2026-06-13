@@ -153,13 +153,8 @@ struct SongListView: View {
                 } // ScrollViewReader
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("samajh")
         .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Text("samajh")
-                    .font(.custom(SamajhFont.cormorantMedium, size: 26))
-                    .foregroundStyle(Color.samajhGold)
-            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { showingProfile = true } label: {
                     UserAvatarBadge()
