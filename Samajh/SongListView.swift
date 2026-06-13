@@ -212,9 +212,18 @@ private struct UserAvatarBadge: View {
         return result.isEmpty ? "·" : result
     }
 
+    // Clerk auto-generates a colored avatar for every user, so imageUrl is
+    // never nil even without a real photo. Only use it for real Google profile
+    // pictures, which are always served from googleusercontent.com.
+    private var googlePhotoURL: URL? {
+        guard let urlStr = Clerk.shared.user?.imageUrl,
+              urlStr.contains("googleusercontent.com"),
+              let url = URL(string: urlStr) else { return nil }
+        return url
+    }
+
     var body: some View {
-        if let urlStr = Clerk.shared.user?.imageUrl,
-           let url = URL(string: urlStr) {
+        if let url = googlePhotoURL {
             AsyncImage(url: url) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
@@ -233,7 +242,7 @@ private struct UserAvatarBadge: View {
         ZStack {
             Circle().stroke(gold.opacity(0.45), lineWidth: 1)
             Text(initials)
-                .font(.system(size: 11, weight: .medium, design: .default))
+                .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(gold)
         }
         .frame(width: 30, height: 30)
