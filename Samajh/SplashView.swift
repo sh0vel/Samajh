@@ -57,7 +57,6 @@ struct SplashView: View {
                         Text("سمجھ")
                             .font(.custom(SamajhFont.notoNastaliq, size: 44))
                             .foregroundStyle(gold.opacity(0.72))
-                            .environment(\.layoutDirection, .rightToLeft)
                             .offset(y: -8)
                             .scaleEffect(0.1 + 0.9 * spread)
                             .opacity(Double(spread) * scriptsOpacity)
