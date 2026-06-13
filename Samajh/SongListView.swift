@@ -141,6 +141,7 @@ struct SongListView: View {
                         )
                     }
                 }
+                .listStyle(.plain)
                 .refreshable {
                     await vm.load()
                 }
