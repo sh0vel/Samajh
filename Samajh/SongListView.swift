@@ -152,16 +152,24 @@ struct SongListView: View {
                 } // ScrollViewReader
             }
         }
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("Samajh")
         .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("samajh")
-                    .font(.custom(SamajhFont.cormorantMedium, size: 28))
-                    .foregroundStyle(Color.samajhGold)
-            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { showingProfile = true } label: {
-                    UserAvatarView()
+                    if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
+                        AsyncImage(url: url) { img in
+                            img.resizable().scaledToFill()
+                        } placeholder: {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundStyle(Color.samajhTextSecondary)
+                        }
+                        .frame(width: 30, height: 30)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(Color.samajhTextSecondary)
+                    }
                 }
             }
         }
@@ -280,43 +288,6 @@ struct ProfileSheet: View {
             }
         }
         .presentationDetents([.medium])
-    }
-}
-
-private struct UserAvatarView: View {
-    private let gold = Color.samajhGold
-
-    private var initial: String {
-        if let first = Clerk.shared.user?.firstName, let ch = first.first { return String(ch) }
-        if let email = Clerk.shared.user?.emailAddresses.first?.emailAddress, let ch = email.first { return String(ch).uppercased() }
-        return "?"
-    }
-
-    var body: some View {
-        if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
-            AsyncImage(url: url) { phase in
-                if let img = phase.image {
-                    img.resizable().scaledToFill()
-                        .frame(width: 28, height: 28)
-                        .clipShape(Circle())
-                } else {
-                    initialsCircle
-                }
-            }
-        } else {
-            initialsCircle
-        }
-    }
-
-    private var initialsCircle: some View {
-        ZStack {
-            Circle().fill(gold.opacity(0.12))
-            Text(initial)
-                .font(.custom(SamajhFont.cormorantMedium, size: 15))
-                .foregroundStyle(gold)
-        }
-        .frame(width: 28, height: 28)
-        .overlay(Circle().stroke(gold.opacity(0.4), lineWidth: 1))
     }
 }
 
