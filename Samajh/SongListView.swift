@@ -156,21 +156,9 @@ struct SongListView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button { showingProfile = true } label: {
-                    if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
-                        AsyncImage(url: url) { img in
-                            img.resizable().scaledToFill()
-                        } placeholder: {
-                            Image(systemName: "person.circle.fill")
-                                .foregroundStyle(Color.samajhTextSecondary)
-                        }
-                        .frame(width: 30, height: 30)
-                        .clipShape(Circle())
-                    } else {
-                        Image(systemName: "person.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundStyle(Color.samajhTextSecondary)
-                    }
+                    UserAvatarBadge()
                 }
+                .buttonStyle(.plain)
             }
         }
         .sheet(isPresented: $showingProfile) {
@@ -211,6 +199,44 @@ struct SongListView: View {
         withAnimation(.easeOut(duration: 1.1)) { flashOpacity = 0 }
         try? await Task.sleep(nanoseconds: 1_200_000_000)
         flashedSongId = nil
+    }
+}
+
+private struct UserAvatarBadge: View {
+    private let gold = Color(red: 0.83, green: 0.63, blue: 0.35)
+
+    private var initials: String {
+        let f = Clerk.shared.user?.firstName?.first.map(String.init) ?? ""
+        let l = Clerk.shared.user?.lastName?.first.map(String.init) ?? ""
+        let result = f + l
+        return result.isEmpty ? "·" : result
+    }
+
+    var body: some View {
+        if let urlStr = Clerk.shared.user?.imageUrl,
+           let url = URL(string: urlStr) {
+            AsyncImage(url: url) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFill()
+                        .frame(width: 30, height: 30)
+                        .clipShape(Circle())
+                } else {
+                    ring
+                }
+            }
+        } else {
+            ring
+        }
+    }
+
+    private var ring: some View {
+        ZStack {
+            Circle().stroke(gold.opacity(0.45), lineWidth: 1)
+            Text(initials)
+                .font(.system(size: 11, weight: .medium, design: .default))
+                .foregroundStyle(gold)
+        }
+        .frame(width: 30, height: 30)
     }
 }
 
