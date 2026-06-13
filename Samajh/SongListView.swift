@@ -209,10 +209,7 @@ private struct UserAvatarBadge: View {
         let f = Clerk.shared.user?.firstName?.first.map(String.init) ?? ""
         let l = Clerk.shared.user?.lastName?.first.map(String.init) ?? ""
         let combined = f + l
-        if !combined.isEmpty { return combined }
-        if let email = Clerk.shared.user?.emailAddresses.first?.emailAddress,
-           let ch = email.first { return String(ch).uppercased() }
-        return "·"
+        return combined.isEmpty ? "·" : combined
     }
 
     var body: some View {
