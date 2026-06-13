@@ -11,33 +11,29 @@ struct FavoriteLine: Codable, Identifiable, Hashable {
     var id: String { lineId }
 }
 
+@MainActor
 final class FavoritesStore: ObservableObject {
     @Published private(set) var favoriteLines: [FavoriteLine] = []
-    private static let key = "favoriteLines"
 
-    init() {
-        if let data = UserDefaults.standard.data(forKey: Self.key),
-           let saved = try? JSONDecoder().decode([FavoriteLine].self, from: data) {
-            favoriteLines = saved
+    func load() async {
+        do {
+            favoriteLines = try await APIClient.shared.getFavorites()
+        } catch {
+            print("[FavoritesStore] load failed: \(error)")
         }
     }
 
     func toggle(line: FavoriteLine) {
         if let idx = favoriteLines.firstIndex(where: { $0.lineId == line.lineId && $0.songId == line.songId }) {
             favoriteLines.remove(at: idx)
+            Task { try? await APIClient.shared.removeFavorite(lineId: line.lineId) }
         } else {
             favoriteLines.append(line)
+            Task { try? await APIClient.shared.addFavorite(line) }
         }
-        persist()
     }
 
     func isFavorite(lineId: String, songId: String) -> Bool {
         favoriteLines.contains(where: { $0.lineId == lineId && $0.songId == songId })
-    }
-
-    private func persist() {
-        if let data = try? JSONEncoder().encode(favoriteLines) {
-            UserDefaults.standard.set(data, forKey: Self.key)
-        }
     }
 }

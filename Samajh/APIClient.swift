@@ -119,6 +119,23 @@ actor APIClient {
         let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
     }
 
+    func getFavorites() async throws -> [FavoriteLine] {
+        let url = baseURL.appendingPathComponent("/favorites")
+        struct Resp: Decodable { let favorites: [FavoriteLine] }
+        let resp: Resp = try await request(url: url, method: "GET", body: Optional<String>.none)
+        return resp.favorites
+    }
+
+    func addFavorite(_ line: FavoriteLine) async throws {
+        let url = baseURL.appendingPathComponent("/favorites")
+        let _: EmptyResponse = try await request(url: url, method: "POST", body: line)
+    }
+
+    func removeFavorite(lineId: String) async throws {
+        let url = baseURL.appendingPathComponent("/favorites/\(lineId)")
+        let _: EmptyResponse = try await request(url: url, method: "DELETE", body: Optional<String>.none)
+    }
+
     private func request<Body: Encodable, T: Decodable>(url: URL, method: String, body: Body?) async throws -> T {
         var req = URLRequest(url: url)
         req.httpMethod = method

@@ -95,7 +95,10 @@ struct AddLyricsView: View {
         }
         .task {
             guard spotify.isAuthorized else { return }
-            nowPlaying = try? await spotify.currentlyPlaying()
+            while !Task.isCancelled {
+                nowPlaying = try? await spotify.currentlyPlaying()
+                try? await Task.sleep(for: .seconds(5))
+            }
         }
     }
 

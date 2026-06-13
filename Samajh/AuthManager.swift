@@ -1,5 +1,5 @@
 import Foundation
-import ClerkSDK
+import ClerkKit
 import AuthenticationServices
 
 @MainActor
@@ -42,11 +42,23 @@ final class AuthManager: ObservableObject {
                 errorMessage = "Apple Sign In: missing identity token"
                 return
             }
+            let firstName = credential.fullName?.givenName
+            let lastName = credential.fullName?.familyName
             isLoading = true
             defer { isLoading = false }
             do {
                 try await Clerk.shared.auth.signInWithIdToken(idToken, provider: .apple)
                 await syncAuthState()
+                if let first = firstName, !first.isEmpty {
+                    do {
+                        try await Clerk.shared.user?.update(.init(firstName: first, lastName: lastName))
+                    } catch {
+                        print("[AuthManager] name update failed: \(error)")
+                        errorMessage = "Signed in but couldn't save name: \(error.localizedDescription)"
+                    }
+                } else {
+                    print("[AuthManager] no name in credential — firstName=\(String(describing: firstName))")
+                }
             } catch {
                 errorMessage = error.localizedDescription
             }

@@ -52,7 +52,11 @@ struct SamajhApp: App {
             .environmentObject(spotify)
             .environmentObject(songListVM)
             .environmentObject(flightCoordinator)
-            .task { await songListVM.load() }
+            .environmentObject(auth)
+            .task {
+                await songListVM.load()
+                await favorites.load()
+            }
             .overlay {
                 if let flight = flightCoordinator.activeFlight {
                     FavoriteFlightOverlay(flight: flight) {

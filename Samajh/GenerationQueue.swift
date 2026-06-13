@@ -89,9 +89,7 @@ final class GenerationQueue: ObservableObject {
         }
 
         while true {
-            try? await Task.sleep(nanoseconds: 4_000_000_000)
             if Task.isCancelled { return }
-
             do {
                 let status = try await APIClient.shared.getJobStatus(jobId: jobId)
                 switch status.status {
@@ -107,6 +105,7 @@ final class GenerationQueue: ObservableObject {
             } catch {
                 // Network hiccup — keep polling.
             }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
         }
     }
 

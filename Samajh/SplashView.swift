@@ -103,6 +103,7 @@ struct SplashView: View {
         VStack(spacing: 16) {
             SignInWithAppleButton(.signIn) { request in
                 request.requestedScopes = [.email, .fullName]
+                request.nonce = UUID().uuidString
             } onCompletion: { result in
                 Task { await authManager.handleAppleSignIn(result: result) }
             }

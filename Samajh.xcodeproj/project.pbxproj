@@ -6,6 +6,11 @@
 	objectVersion = 71;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BAAF36FE2FDC6DB500FB2D2C /* ClerkKit in Frameworks */ = {isa = PBXBuildFile; productRef = BAAF36FD2FDC6DB500FB2D2C /* ClerkKit */; };
+		BAAF37002FDC6DB500FB2D2C /* ClerkKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = BAAF36FF2FDC6DB500FB2D2C /* ClerkKitUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		A0000000000000000000000A /* Samajh.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Samajh.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -19,6 +24,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BAAF36FE2FDC6DB500FB2D2C /* ClerkKit in Frameworks */,
+				BAAF37002FDC6DB500FB2D2C /* ClerkKitUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -61,6 +68,8 @@
 			);
 			name = Samajh;
 			packageProductDependencies = (
+				BAAF36FD2FDC6DB500FB2D2C /* ClerkKit */,
+				BAAF36FF2FDC6DB500FB2D2C /* ClerkKitUI */,
 			);
 			productName = Samajh;
 			productReference = A0000000000000000000000A /* Samajh.app */;
@@ -91,6 +100,9 @@
 			);
 			mainGroup = A0000000000000000000000D;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BAAF36FC2FDC6DB500FB2D2C /* XCRemoteSwiftPackageReference "clerk-ios" */,
+			);
 			productRefGroup = A0000000000000000000000E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -245,6 +257,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Samajh/Samajh.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Samajh/Preview Content\"";
@@ -277,6 +290,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Samajh/Samajh.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"Samajh/Preview Content\"";
@@ -326,6 +340,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BAAF36FC2FDC6DB500FB2D2C /* XCRemoteSwiftPackageReference "clerk-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/clerk/clerk-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.2.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BAAF36FD2FDC6DB500FB2D2C /* ClerkKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BAAF36FC2FDC6DB500FB2D2C /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKit;
+		};
+		BAAF36FF2FDC6DB500FB2D2C /* ClerkKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BAAF36FC2FDC6DB500FB2D2C /* XCRemoteSwiftPackageReference "clerk-ios" */;
+			productName = ClerkKitUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A00000000000000000000012 /* Project object */;
 }

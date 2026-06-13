@@ -1,4 +1,5 @@
 import SwiftUI
+import ClerkKit
 
 @MainActor
 final class SongListViewModel: ObservableObject {
@@ -35,9 +36,11 @@ private let generationPhrases = [
 struct SongListView: View {
     @EnvironmentObject private var vm: SongListViewModel
     @EnvironmentObject private var queue: GenerationQueue
+    @EnvironmentObject private var auth: AuthManager
     @State private var phraseIndex = 0
     @State private var flashedSongId: String?
     @State private var flashOpacity: Double = 0
+    @State private var showingProfile = false
 
     var body: some View {
         Group {
@@ -142,6 +145,29 @@ struct SongListView: View {
             }
         }
         .navigationTitle("Samajh")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showingProfile = true } label: {
+                    if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
+                        AsyncImage(url: url) { img in
+                            img.resizable().scaledToFill()
+                        } placeholder: {
+                            Image(systemName: "person.circle.fill")
+                                .foregroundStyle(Color.samajhTextSecondary)
+                        }
+                        .frame(width: 30, height: 30)
+                        .clipShape(Circle())
+                    } else {
+                        Image(systemName: "person.circle.fill")
+                            .font(.system(size: 26))
+                            .foregroundStyle(Color.samajhTextSecondary)
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $showingProfile) {
+            ProfileSheet(auth: auth)
+        }
         .task {
             await vm.load()
         }
@@ -176,5 +202,87 @@ struct SongListView: View {
         withAnimation(.easeOut(duration: 1.1)) { flashOpacity = 0 }
         try? await Task.sleep(nanoseconds: 1_200_000_000)
         flashedSongId = nil
+    }
+}
+
+struct ProfileSheet: View {
+    @ObservedObject var auth: AuthManager
+    @Environment(\.dismiss) private var dismiss
+    @State private var firstName: String = Clerk.shared.user?.firstName ?? ""
+    @State private var lastName: String = Clerk.shared.user?.lastName ?? ""
+    @State private var isSaving = false
+
+    private var email: String? {
+        Clerk.shared.user?.emailAddresses.first?.emailAddress
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack {
+                        Spacer()
+                        if let urlStr = Clerk.shared.user?.imageUrl, let url = URL(string: urlStr) {
+                            AsyncImage(url: url) { img in
+                                img.resizable().scaledToFill()
+                            } placeholder: {
+                                Image(systemName: "person.circle.fill")
+                                    .font(.system(size: 64))
+                                    .foregroundStyle(Color.samajhTextSecondary)
+                            }
+                            .frame(width: 72, height: 72)
+                            .clipShape(Circle())
+                        } else {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 64))
+                                .foregroundStyle(Color.samajhTextSecondary)
+                        }
+                        Spacer()
+                    }
+                    .listRowBackground(Color.clear)
+                    .padding(.vertical, 8)
+                }
+
+                Section("Name") {
+                    TextField("First name", text: $firstName)
+                    TextField("Last name", text: $lastName)
+                }
+
+                if let email = email {
+                    Section("Email") {
+                        Text(email)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Section {
+                    Button(role: .destructive) {
+                        dismiss()
+                        auth.signOut()
+                    } label: {
+                        Text("Sign Out")
+                    }
+                }
+            }
+            .navigationTitle("Account")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Save") {
+                        Task {
+                            isSaving = true
+                            try? await Clerk.shared.user?.update(.init(firstName: firstName, lastName: lastName))
+                            isSaving = false
+                            dismiss()
+                        }
+                    }
+                    .disabled(isSaving)
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
