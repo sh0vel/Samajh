@@ -52,7 +52,8 @@ struct SamajhApp: App {
             .environmentObject(songListVM)
             .environmentObject(flightCoordinator)
             .environmentObject(auth)
-            .task {
+            .task(id: auth.isSignedIn) {
+                guard auth.isSignedIn else { return }
                 await songListVM.load()
                 await favorites.load()
             }

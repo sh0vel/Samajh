@@ -176,7 +176,8 @@ struct SongListView: View {
         .sheet(isPresented: $showingProfile) {
             ProfileSheet(auth: auth)
         }
-        .task {
+        .task(id: auth.isSignedIn) {
+            guard auth.isSignedIn else { return }
             await vm.load()
         }
         // Rotate status phrases while any job is in progress
