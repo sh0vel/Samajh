@@ -55,7 +55,7 @@ struct SplashView: View {
                             .blur(radius: scriptBlur)
 
                         Text("سمجھ")
-                            .font(.custom(SamajhFont.notoNastaliq, size: 44))
+                            .font(.custom("GeezaPro", size: 44))
                             .foregroundStyle(gold.opacity(0.72))
                             .offset(y: -8)
                             .scaleEffect(0.1 + 0.9 * spread)
