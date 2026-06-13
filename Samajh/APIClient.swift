@@ -143,7 +143,7 @@ actor APIClient {
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
             req.httpBody = try encoder.encode(body)
         }
-        if let token = await AuthManager.shared.sessionToken {
+        if let token = await AuthManager.shared.getToken() {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 

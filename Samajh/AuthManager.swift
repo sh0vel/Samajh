@@ -19,12 +19,14 @@ final class AuthManager: ObservableObject {
     }
 
     func syncAuthState() async {
-        isSignedIn = Clerk.shared.session != nil
-        if isSignedIn {
-            sessionToken = try? await Clerk.shared.session?.getToken()
-        } else {
-            sessionToken = nil
-        }
+        let session = Clerk.shared.session
+        let token: String? = try? await session?.getToken()
+        sessionToken = token
+        isSignedIn = token != nil
+    }
+
+    func getToken() async -> String? {
+        return try? await Clerk.shared.session?.getToken()
     }
 
     // Called from SignInWithAppleButton's onCompletion callback
