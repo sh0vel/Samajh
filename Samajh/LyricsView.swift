@@ -51,7 +51,6 @@ final class LyricsViewModel: ObservableObject {
 struct LyricsView: View {
     let songId: String
     var imageUrl: String? = nil
-    var targetLineId: String? = nil
     @StateObject private var vm = LyricsViewModel()
 
     @AppStorage("showNative") private var showNative = false
@@ -59,8 +58,6 @@ struct LyricsView: View {
     @AppStorage("showDirect") private var showDirect = false
     @AppStorage("showNatural") private var showNatural = true
     @State private var showNavBarTitle = false
-    @State private var lineHighlightOpacity: Double = 0
-    @State private var scrollPositionId: String?
     @State private var activeTokenItem: ActiveTokenItem?
     @State private var editingLine: LyricLineModel?
     @State private var showSongRetranslate = false
@@ -234,13 +231,6 @@ struct LyricsView: View {
                                 }
                             )
                             .id(line.lineId)
-                            .overlay(alignment: .leading) {
-                                if line.lineId == targetLineId {
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.samajhGold.opacity(0.11 * lineHighlightOpacity))
-                                        .allowsHitTesting(false)
-                                }
-                            }
                         }
                     }
                 }
@@ -253,22 +243,12 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
-        .scrollPosition(id: $scrollPositionId, anchor: .center)
         .onScrollGeometryChange(for: Bool.self) { geo in
             geo.contentOffset.y > 80
         } action: { _, pastHeader in
             withAnimation(SamajhMotion.fade) {
                 showNavBarTitle = pastHeader
             }
-        }
-        .task(id: lesson.sections.isEmpty) {
-            guard let targetLineId, !lesson.sections.isEmpty else { return }
-            try? await Task.sleep(nanoseconds: 350_000_000)
-            scrollPositionId = targetLineId
-            try? await Task.sleep(nanoseconds: 550_000_000)
-            withAnimation(.easeIn(duration: 0.25)) { lineHighlightOpacity = 1 }
-            try? await Task.sleep(nanoseconds: 700_000_000)
-            withAnimation(.easeOut(duration: 2.0)) { lineHighlightOpacity = 0 }
         }
     }
 }

@@ -37,7 +37,7 @@ struct FavoritesView: View {
                     ForEach(grouped, id: \.songId) { group in
                         Section(group.songTitle) {
                             ForEach(group.lines) { line in
-                                NavigationLink(value: SongTarget(songId: line.songId, lineId: line.lineId)) {
+                                NavigationLink(value: SongMetadata(songId: line.songId, title: line.songTitle, artist: nil, imageUrl: nil, createdAt: nil, updatedAt: nil)) {
                                     FavoriteLineLabel(line: line)
                                 }
                                 .contextMenu {

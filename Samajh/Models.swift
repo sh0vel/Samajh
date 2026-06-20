@@ -1,11 +1,5 @@
 import Foundation
 
-struct SongTarget: Hashable {
-    let songId: String
-    let lineId: String?
-    var imageUrl: String? = nil
-}
-
 struct SongMetadata: Codable, Identifiable, Hashable {
     let songId: String
     let title: String
