@@ -177,14 +177,13 @@ struct LyricsView: View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
-                Color.clear
-                    .frame(height: 0)
-                    .background(GeometryReader { geo in
-                        Color.clear.preference(
-                            key: ScrollOffsetKey.self,
-                            value: geo.frame(in: .named("lyricsScroll")).minY
-                        )
-                    })
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: ScrollOffsetKey.self,
+                        value: geo.frame(in: .named("lyricsScroll")).minY
+                    )
+                }
+                .frame(height: 0)
 
                 HStack(alignment: .center, spacing: 14) {
                     AlbumThumbnail(url: imageUrl, size: 64)
@@ -262,10 +261,13 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
+        .id(songId)
         .coordinateSpace(name: "lyricsScroll")
         .onPreferenceChange(ScrollOffsetKey.self) { offset in
-            withAnimation(SamajhMotion.fade) {
-                showNavBarTitle = offset < -80
+            DispatchQueue.main.async {
+                withAnimation(SamajhMotion.fade) {
+                    showNavBarTitle = offset < -80
+                }
             }
         }
         .task(id: lesson.sections.isEmpty) {
