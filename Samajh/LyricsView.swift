@@ -69,6 +69,7 @@ struct LyricsView: View {
     @EnvironmentObject private var favorites: FavoritesStore
     @EnvironmentObject private var queue: GenerationQueue
     @EnvironmentObject private var songList: SongListViewModel
+    @EnvironmentObject private var spotify: SpotifyManager
 
     private struct ActiveTokenItem: Identifiable {
         let id = "active"
@@ -80,7 +81,6 @@ struct LyricsView: View {
             .navigationTitle(vm.lesson?.title ?? "")  // drives back-button label in child views
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // Title fades in only once the content header scrolls away
                 ToolbarItem(placement: .principal) {
                     Text(vm.lesson?.title ?? "")
                         .font(.headline)
@@ -126,7 +126,10 @@ struct LyricsView: View {
                 .background(Color.samajhBackgroundSecondary.opacity(0.95))
             }
             .toolbar(.hidden, for: .tabBar)
-            .task { await vm.load(songId: songId) }
+            .task {
+                showNavBarTitle = false
+                await vm.load(songId: songId)
+            }
             .sheet(item: $activeTokenItem) { item in
                 TokenSheet(token: item.token)
                     .presentationDetents([.fraction(0.25), .medium])
@@ -174,6 +177,15 @@ struct LyricsView: View {
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 32) {
+                Color.clear
+                    .frame(height: 0)
+                    .background(GeometryReader { geo in
+                        Color.clear.preference(
+                            key: ScrollOffsetKey.self,
+                            value: geo.frame(in: .named("lyricsScroll")).minY
+                        )
+                    })
+
                 HStack(alignment: .center, spacing: 14) {
                     AlbumThumbnail(url: imageUrl, size: 64)
                     VStack(alignment: .leading, spacing: 6) {
@@ -186,6 +198,11 @@ struct LyricsView: View {
                                 .foregroundStyle(Color.samajhTextSecondary)
                         }
                     }
+                    Spacer()
+                    SpotifyPlayButton(
+                        title: lesson.title,
+                        artist: lesson.source?.artist ?? ""
+                    )
                 }
                 .padding(.top, 12)
 
@@ -245,21 +262,18 @@ struct LyricsView: View {
                 activeTokenItem = nil
             }
         }
-        .onScrollGeometryChange(for: Bool.self) { geo in
-            geo.contentOffset.y > 30
-        } action: { _, pastHeader in
+        .coordinateSpace(name: "lyricsScroll")
+        .onPreferenceChange(ScrollOffsetKey.self) { offset in
             withAnimation(SamajhMotion.fade) {
-                showNavBarTitle = pastHeader
+                showNavBarTitle = offset < -80
             }
         }
         .task(id: lesson.sections.isEmpty) {
             guard let targetLineId, !lesson.sections.isEmpty else { return }
-            // Wait for layout to settle, then scroll
             try? await Task.sleep(nanoseconds: 350_000_000)
             withAnimation(.easeInOut(duration: 0.4)) {
                 proxy.scrollTo(targetLineId, anchor: .center)
             }
-            // After scroll completes, bloom the highlight then fade it over 2s
             try? await Task.sleep(nanoseconds: 550_000_000)
             withAnimation(.easeIn(duration: 0.25)) { lineHighlightOpacity = 1 }
             try? await Task.sleep(nanoseconds: 700_000_000)
@@ -269,6 +283,13 @@ struct LyricsView: View {
     }
 }
 
+
+private struct ScrollOffsetKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
 
 private struct ToggleChip: View {
     let label: String
@@ -830,6 +851,40 @@ private struct LineEditSheet: View {
         } catch {
             errorMsg = error.localizedDescription
         }
+    }
+}
+
+// MARK: - Spotify Play Button
+
+private struct SpotifyPlayButton: View {
+    let title: String
+    let artist: String
+    @EnvironmentObject private var spotify: SpotifyManager
+
+    private var isThisSongPlaying: Bool {
+        spotify.isPlaying && spotify.nowPlayingTitle?.lowercased() == title.lowercased()
+    }
+
+    var body: some View {
+        Button {
+            Task { await spotify.play(title: title, artist: artist) }
+        } label: {
+            ZStack {
+                if spotify.isBusy {
+                    ProgressView()
+                        .tint(Color.samajhTextMuted)
+                        .scaleEffect(0.8)
+                } else {
+                    Image(systemName: isThisSongPlaying ? "waveform" : "play.circle")
+                        .font(.system(size: 22))
+                        .foregroundStyle(isThisSongPlaying ? Color.samajhGold : Color.samajhTextMuted)
+                        .animation(SamajhMotion.fade, value: isThisSongPlaying)
+                }
+            }
+            .frame(width: 36, height: 36)
+        }
+        .buttonStyle(.plain)
+        .disabled(spotify.isBusy)
     }
 }
 

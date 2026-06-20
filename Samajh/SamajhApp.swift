@@ -57,6 +57,13 @@ struct SamajhApp: App {
                 await songListVM.load()
                 await favorites.load()
             }
+            .onOpenURL { url in spotify.handleURL(url) }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                spotify.appDidBecomeActive()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                spotify.appDidEnterBackground()
+            }
             .overlay {
                 if let flight = flightCoordinator.activeFlight {
                     FavoriteFlightOverlay(flight: flight) {
