@@ -103,9 +103,11 @@ struct LyricsView: View {
             }
             .alert("Delete this song?", isPresented: $showDeleteConfirm) {
                 Button("Delete", role: .destructive) {
-                    songList.remove(songId: songId)
-                    dismiss()
-                    Task { try? await vm.deleteSong(songId: songId) }
+                    Task {
+                        try? await vm.deleteSong(songId: songId)
+                        songList.remove(songId: songId)
+                        dismiss()
+                    }
                 }
                 Button("Cancel", role: .cancel) {}
             } message: {
