@@ -88,8 +88,13 @@ final class GenerationQueue: ObservableObject {
             persist()
         }
 
+        let deadline = Date().addingTimeInterval(10 * 60)
         while true {
             if Task.isCancelled { return }
+            if Date() > deadline {
+                setError("\(title): timed out — please try again")
+                return
+            }
             do {
                 let status = try await APIClient.shared.getJobStatus(jobId: jobId)
                 switch status.status {
