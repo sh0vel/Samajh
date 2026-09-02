@@ -107,8 +107,13 @@ final class GenerationQueue: ObservableObject {
                 default:
                     break
                 }
+            } catch let error as APIError {
+                switch error {
+                case .transport: break  // network hiccup — keep polling
+                default: setError(error.localizedDescription); return
+                }
             } catch {
-                // Network hiccup — keep polling.
+                break  // unknown error — keep polling
             }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
         }
