@@ -34,6 +34,8 @@ private let generationPhrases = [
 ]
 
 struct SongListView: View {
+    var onAddWithQuery: (String) -> Void = { _ in }
+
     @EnvironmentObject private var vm: SongListViewModel
     @EnvironmentObject private var queue: GenerationQueue
     @EnvironmentObject private var auth: AuthManager
@@ -41,6 +43,17 @@ struct SongListView: View {
     @State private var flashedSongId: String?
     @State private var flashOpacity: Double = 0
     @State private var showingProfile = false
+    @State private var searchText = ""
+    @FocusState private var searchFocused: Bool
+
+    private var filteredSongs: [SongMetadata] {
+        guard !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return vm.songs }
+        let q = searchText.lowercased()
+        return vm.songs.filter {
+            $0.title.lowercased().contains(q) ||
+            ($0.artist?.lowercased().contains(q) == true)
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -56,6 +69,48 @@ struct SongListView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
+            .padding(.bottom, 8)
+
+            HStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 15))
+                        .foregroundStyle(searchFocused || !searchText.isEmpty ? Color.samajhGold : Color.samajhTextMuted)
+                        .animation(SamajhMotion.fade, value: searchFocused)
+                    TextField("Search your library", text: $searchText)
+                        .font(.custom(SamajhFont.interRegular, size: 15))
+                        .foregroundStyle(Color.samajhTextPrimary)
+                        .tint(Color.samajhGold)
+                        .autocorrectionDisabled()
+                        .focused($searchFocused)
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundStyle(Color.samajhTextMuted)
+                                .font(.system(size: 15))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.samajhSurfaceCard)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .contentShape(RoundedRectangle(cornerRadius: 10))
+                .onTapGesture { searchFocused = true }
+
+                if searchFocused || !searchText.isEmpty {
+                    Button("Cancel") {
+                        searchText = ""
+                        searchFocused = false
+                    }
+                    .font(.custom(SamajhFont.interRegular, size: 15))
+                    .foregroundStyle(Color.samajhTextMuted)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .animation(SamajhMotion.standard, value: searchFocused)
+            .padding(.horizontal, 20)
             .padding(.bottom, 8)
 
         Group {
@@ -121,13 +176,55 @@ struct SongListView: View {
                             }
                         }
                         .padding(.vertical, 4)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            Button(role: .destructive) {
+                                queue.cancel(jobId: job.id)
+                            } label: {
+                                Label("Dismiss", systemImage: "xmark")
+                            }
+                        }
                     }
                     if let err = queue.errorMessage {
                         Text("Generation failed: \(err)")
                             .font(.callout)
                             .foregroundStyle(.red)
                     }
-                    ForEach(vm.songs) { song in
+                    if !searchText.isEmpty && filteredSongs.isEmpty && queue.pendingJobs.isEmpty {
+                        Button {
+                            let q = searchText
+                            searchFocused = false
+                            searchText = ""
+                            onAddWithQuery(q)
+                        } label: {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.samajhGold.opacity(0.15))
+                                        .frame(width: 48, height: 48)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 18, weight: .medium))
+                                        .foregroundStyle(Color.samajhGold)
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Add \"\(searchText)\"")
+                                        .font(.custom(SamajhFont.interSemiBold, size: 16))
+                                        .foregroundStyle(Color.samajhGold)
+                                    Text("Search Spotify for this song")
+                                        .font(.custom(SamajhFont.interRegular, size: 13))
+                                        .foregroundStyle(Color.samajhTextMuted)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                                    .foregroundStyle(Color.samajhTextMuted)
+                            }
+                            .padding(.vertical, 6)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                    }
+                    ForEach(filteredSongs) { song in
                         NavigationLink(value: song) {
                             HStack(spacing: 12) {
                                 AlbumThumbnail(url: song.imageUrl, size: 48)
@@ -157,6 +254,7 @@ struct SongListView: View {
                     }
                 }
                 .listStyle(.plain)
+                .scrollDismissesKeyboard(.immediately)
                 .refreshable {
                     await vm.load()
                 }
@@ -171,6 +269,7 @@ struct SongListView: View {
         } // VStack
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { searchFocused = false }
         .sheet(isPresented: $showingProfile) {
             ProfileSheet(auth: auth)
         }

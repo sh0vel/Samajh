@@ -16,20 +16,25 @@ struct SamajhApp: App {
         Task.detached(priority: .background) { SamajhFonts.register() }
     }
 
+    @State private var addSongInitialQuery = ""
+
     var body: some Scene {
         WindowGroup {
             TabView(selection: $selectedTab) {
                 NavigationStack {
-                    SongListView()
-                        .navigationDestination(for: SongMetadata.self) { song in
-                            LyricsView(songId: song.songId, imageUrl: song.imageUrl)
-                        }
+                    SongListView(onAddWithQuery: { query in
+                        addSongInitialQuery = query
+                        selectedTab = 1
+                    })
+                    .navigationDestination(for: SongMetadata.self) { song in
+                        LyricsView(songId: song.songId, imageUrl: song.imageUrl)
+                    }
                 }
                 .tabItem { Label("Songs", systemImage: "music.note.list") }
                 .tag(0)
 
                 NavigationStack {
-                    AddLyricsView(onGenerate: { selectedTab = 0 })
+                    AddLyricsView(onGenerate: { selectedTab = 0 }, initialQuery: $addSongInitialQuery)
                 }
                 .tabItem { Label("Add", systemImage: "plus.circle.fill") }
                 .tag(1)

@@ -78,6 +78,13 @@ actor APIClient {
         return try await request(url: url, method: "GET", body: Optional<String>.none)
     }
 
+    func getPendingJobs() async throws -> [JobStatusResponse] {
+        let url = baseURL.appendingPathComponent("/jobs/pending")
+        struct Resp: Decodable { let jobs: [JobStatusResponse] }
+        let resp: Resp = try await request(url: url, method: "GET", body: Optional<String>.none)
+        return resp.jobs
+    }
+
     func insertInstrumental(songId: String, beforeLineId: String) async throws {
         let url = baseURL.appendingPathComponent("/songs/\(songId)/lines/\(beforeLineId)/instrumental")
         let _: EmptyResponse = try await request(url: url, method: "POST", body: Optional<String>.none)

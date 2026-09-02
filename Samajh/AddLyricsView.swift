@@ -3,6 +3,7 @@ import UIKit
 
 struct AddLyricsView: View {
     let onGenerate: () -> Void
+    @Binding var initialQuery: String
 
     @EnvironmentObject private var queue: GenerationQueue
     @EnvironmentObject private var spotify: SpotifyManager
@@ -99,6 +100,19 @@ struct AddLyricsView: View {
                 nowPlaying = try? await spotify.currentlyPlaying()
                 try? await Task.sleep(for: .seconds(5))
             }
+        }
+        .onAppear {
+            guard !initialQuery.isEmpty else { return }
+            let q = initialQuery
+            initialQuery = ""
+            spotifyQuery = q
+            scheduleSearch(q)
+        }
+        .onChange(of: initialQuery) { _, q in
+            guard !q.isEmpty else { return }
+            initialQuery = ""
+            spotifyQuery = q
+            scheduleSearch(q)
         }
     }
 

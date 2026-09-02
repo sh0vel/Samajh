@@ -7,6 +7,7 @@ final class GenerationQueue: ObservableObject {
         let id: String      // jobId
         let title: String
         let imageUrl: String?
+        let createdAt: Date
     }
 
     @Published var pendingJobs: [PendingJob] = []
@@ -32,11 +33,33 @@ final class GenerationQueue: ObservableObject {
     }
 
     init() {
+        // Restore from UserDefaults immediately (with staleness check) so UI isn't blank
         if let data = UserDefaults.standard.data(forKey: Self.storageKey),
            let saved = try? JSONDecoder().decode([PendingJob].self, from: data) {
-            pendingJobs = saved
-            for job in saved {
-                Task { await poll(jobId: job.id, title: job.title, imageUrl: job.imageUrl, onComplete: { _ in }) }
+            let cutoff = Date().addingTimeInterval(-15 * 60)
+            pendingJobs = saved.filter { $0.createdAt > cutoff }
+        }
+
+        // Then sync from server — server is truth
+        Task {
+            do {
+                let serverJobs = try await APIClient.shared.getPendingJobs()
+                let serverPending = serverJobs
+                    .filter { $0.status == "pending" }
+                    .map { PendingJob(id: $0.jobId, title: $0.title ?? $0.jobId, imageUrl: $0.imageUrl, createdAt: Date()) }
+
+                // Replace local state with server truth (drops any stale UserDefaults-only jobs)
+                pendingJobs = serverPending
+                persist()
+
+                for job in pendingJobs {
+                    Task { await poll(jobId: job.id, title: job.title, imageUrl: job.imageUrl, onComplete: { _ in }) }
+                }
+            } catch {
+                // Network unavailable — poll whatever survived the staleness check
+                for job in pendingJobs {
+                    Task { await poll(jobId: job.id, title: job.title, imageUrl: job.imageUrl, onComplete: { _ in }) }
+                }
             }
         }
     }
@@ -57,7 +80,7 @@ final class GenerationQueue: ObservableObject {
                     artistHint: artistHint.isEmpty ? nil : artistHint,
                     imageUrl: imageUrl
                 )
-                let job = PendingJob(id: queued.jobId, title: titleHint, imageUrl: imageUrl)
+                let job = PendingJob(id: queued.jobId, title: titleHint, imageUrl: imageUrl, createdAt: Date())
                 pendingJobs.append(job)
                 persist()
                 await poll(jobId: queued.jobId, title: titleHint, imageUrl: imageUrl, onComplete: onComplete)
@@ -72,7 +95,7 @@ final class GenerationQueue: ObservableObject {
         Task {
             do {
                 let queued = try await APIClient.shared.retranslateSong(songId: songId, feedback: feedback)
-                let job = PendingJob(id: queued.jobId, title: title, imageUrl: imageUrl)
+                let job = PendingJob(id: queued.jobId, title: title, imageUrl: imageUrl, createdAt: Date())
                 pendingJobs.append(job)
                 persist()
                 await poll(jobId: queued.jobId, title: title, imageUrl: imageUrl, onComplete: { _ in })
@@ -80,6 +103,11 @@ final class GenerationQueue: ObservableObject {
                 setError(error.localizedDescription)
             }
         }
+    }
+
+    func cancel(jobId: String) {
+        pendingJobs.removeAll { $0.id == jobId }
+        persist()
     }
 
     private func poll(jobId: String, title: String, imageUrl: String? = nil, onComplete: @escaping (String) -> Void) async {
@@ -113,7 +141,7 @@ final class GenerationQueue: ObservableObject {
                 default: setError(error.localizedDescription); return
                 }
             } catch {
-                break  // unknown error — keep polling
+                break
             }
             try? await Task.sleep(nanoseconds: 2_000_000_000)
         }

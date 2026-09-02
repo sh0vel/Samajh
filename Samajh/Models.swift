@@ -83,6 +83,8 @@ struct JobStatusResponse: Codable {
     let status: String
     let songId: String?
     let errorMessage: String?
+    let title: String?
+    let imageUrl: String?
 }
 
 struct LookupRequest: Codable {
