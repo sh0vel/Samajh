@@ -42,6 +42,7 @@ struct SongListView: View {
     @State private var phraseIndex = 0
     @State private var flashedSongId: String?
     @State private var flashOpacity: Double = 0
+    @State private var scrollTarget: String?
     @State private var showingProfile = false
     @State private var searchText = ""
     @FocusState private var searchFocused: Bool
@@ -189,6 +190,12 @@ struct SongListView: View {
                             .font(.callout)
                             .foregroundStyle(.red)
                     }
+                    if let info = queue.infoMessage {
+                        Text(info)
+                            .font(.callout)
+                            .foregroundStyle(Color.samajhGold)
+                            .listRowBackground(Color.clear)
+                    }
                     if !searchText.isEmpty && filteredSongs.isEmpty && queue.pendingJobs.isEmpty {
                         Button {
                             let q = searchText
@@ -263,6 +270,9 @@ struct SongListView: View {
                         withAnimation { proxy.scrollTo(first.id, anchor: .top) }
                     }
                 }
+                .onChange(of: scrollTarget) { _, id in
+                    if let id { withAnimation { proxy.scrollTo(id, anchor: .center) } }
+                }
                 } // ScrollViewReader
             }
         } // Group
@@ -291,11 +301,14 @@ struct SongListView: View {
         .onChange(of: queue.isGenerating) { _, nowGenerating in
             if !nowGenerating {
                 let previousIds = Set(vm.songs.map { $0.songId })
+                let completedId = queue.lastCompletedSongId
                 Task {
                     await vm.load()
-                    if let newSong = vm.songs.first(where: { !previousIds.contains($0.songId) }) {
-                        await flashRow(for: newSong.songId)
+                    guard let id = completedId else { return }
+                    if previousIds.contains(id) {
+                        queue.setInfo("Already in your library")
                     }
+                    await flashRow(for: id)
                 }
             }
         }
@@ -303,6 +316,7 @@ struct SongListView: View {
 
     private func flashRow(for songId: String) async {
         flashedSongId = songId
+        scrollTarget = songId
         withAnimation(.easeIn(duration: 0.25)) { flashOpacity = 1 }
         try? await Task.sleep(nanoseconds: 1_300_000_000)
         withAnimation(.easeOut(duration: 1.1)) { flashOpacity = 0 }

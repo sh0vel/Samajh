@@ -12,15 +12,27 @@ final class GenerationQueue: ObservableObject {
 
     @Published var pendingJobs: [PendingJob] = []
     @Published var errorMessage: String?
+    @Published var infoMessage: String?
+    private(set) var lastCompletedSongId: String?
 
     var isGenerating: Bool { !pendingJobs.isEmpty }
 
     private static let storageKey = "pendingGenerationJobs"
     private var errorClearTask: Task<Void, Never>?
+    private var infoClearTask: Task<Void, Never>?
 
     func dismissError() {
         errorMessage = nil
         errorClearTask?.cancel()
+    }
+
+    func setInfo(_ message: String) {
+        infoMessage = message
+        infoClearTask?.cancel()
+        infoClearTask = Task {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)
+            if !Task.isCancelled { infoMessage = nil }
+        }
     }
 
     private func setError(_ message: String) {
@@ -40,19 +52,23 @@ final class GenerationQueue: ObservableObject {
             pendingJobs = saved.filter { $0.createdAt > cutoff }
         }
 
-        // Then sync from server — server is truth
+        // Then sync from server — drop stale UserDefaults jobs, keep any just-submitted ones
         Task {
+            let syncStart = Date()
             do {
                 let serverJobs = try await APIClient.shared.getPendingJobs()
                 let serverPending = serverJobs
                     .filter { $0.status == "pending" }
                     .map { PendingJob(id: $0.jobId, title: $0.title ?? $0.jobId, imageUrl: $0.imageUrl, createdAt: Date()) }
 
-                // Replace local state with server truth (drops any stale UserDefaults-only jobs)
-                pendingJobs = serverPending
+                // Merge: server jobs + any local jobs submitted AFTER we sent the request
+                // (those won't be in the server response yet, but they're real)
+                let serverIds = Set(serverPending.map { $0.id })
+                let recentLocal = pendingJobs.filter { !serverIds.contains($0.id) && $0.createdAt > syncStart }
+                pendingJobs = serverPending + recentLocal
                 persist()
 
-                for job in pendingJobs {
+                for job in serverPending {
                     Task { await poll(jobId: job.id, title: job.title, imageUrl: job.imageUrl, onComplete: { _ in }) }
                 }
             } catch {
@@ -127,7 +143,10 @@ final class GenerationQueue: ObservableObject {
                 let status = try await APIClient.shared.getJobStatus(jobId: jobId)
                 switch status.status {
                 case "done":
-                    if let songId = status.songId { onComplete(songId) }
+                    if let songId = status.songId {
+                        lastCompletedSongId = songId
+                        onComplete(songId)
+                    }
                     return
                 case "error":
                     setError(status.errorMessage ?? "\(title): generation failed")
